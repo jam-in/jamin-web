@@ -58,7 +58,8 @@ Three clocks/streams have to be reconciled, and that's where most of the complex
 | `js/timeline-playhead.js` | Playhead cursor, click-to-seek, click-to-play/pause. | Subscribes to `timeline:ready`, `playhead:refresh`. |
 | `js/latency.js` | Device-wide sync-offset UI (persisted in `localStorage`). | Delegates to `settingsStore`. |
 | `js/search.js` / `search-ui.js` | YouTube search via public Piped/Invidious instances + embeddability probe. | No API key; depends on flaky third-party instances. |
-| `js/history-ui.js` | "Recorded videos" dropdown. | Loads via `videoStore.load()`. |
+| `js/history-ui.js` | "Recorded videos" dropdown (opens on search-field focus). | Loads via `videoStore.load()`. |
+| `js/menu-ui.js` | Logo dropdown menu: export/import/share, Advanced toggle, mic mode, About. | Owns `data-nudge`; delegates mic mode to `audio-devices`. |
 | `js/export-import.js` / `zip.js` | Zip of audio blobs + `metadata.json`. | `zip.js` is a hand-rolled STORE-only zip (CRC32 + headers). |
 | `js/waveform.js` | Downsample an `AudioBuffer` to peaks; draw canvas previews. | |
 | `js/ui.js` | Toast, theme, overlay, `formatTime`, `escapeHtml`, modals, element binding. | `bindElements()` is the single source of DOM refs. |
@@ -102,7 +103,7 @@ This replaces the old pattern of bolting render callbacks onto a shared object
 | `video:meta-updated` | History title saved | `history-ui` |
 | `settings:latency-changed` | Global offset nudge | `tracks-ui` (waveform redraw) |
 | `settings:solo-changed` | Solo toggle | engine updated in store; UI refreshes active class |
-| `timeline:ready` | Video duration known | `tracks-ui`, playhead, `advanced-ui` |
+| `timeline:ready` | Video duration known | `tracks-ui`, playhead, `menu-ui` |
 | `playhead:refresh` | Track list re-rendered | `timeline-playhead` |
 | `recording:state-changed` | Start/pause/finalize | (reserved for future UI hooks) |
 

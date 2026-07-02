@@ -25,9 +25,51 @@
     <section class="stage">
       <!-- Zone 1: top bar -->
       <header class="topbar">
-        <button id="logoBtn" class="topbar-logo-btn" type="button" title="Recorded videos" aria-haspopup="true" aria-expanded="false">
-          <img src="icons/jam-in logo2 alpha.png" alt="Jam-in!" class="topbar-logo" />
-        </button>
+        <div class="menu-wrap">
+          <button id="logoBtn" class="topbar-logo-btn" type="button" title="Menu" aria-haspopup="true" aria-expanded="false" aria-controls="mainMenu">
+            <img src="icons/jam-in logo2 alpha.png" alt="Jam-in!" class="topbar-logo" />
+          </button>
+
+          <div id="mainMenu" class="app-menu" role="menu" hidden>
+            <button id="exportBtn" class="menu-item desktop-only" type="button" role="menuitem">Export takes…</button>
+            <button id="importBtn" class="menu-item desktop-only" type="button" role="menuitem">Import takes…</button>
+            <button id="shareBtn" class="menu-item mobile-only" type="button" role="menuitem">Share takes…</button>
+            <input id="importFile" type="file" accept=".jmn,.zip,application/zip" hidden />
+
+            <div class="menu-divider"></div>
+
+            <label class="menu-item menu-check">
+              <input type="checkbox" id="advNudgeChk" />
+              <span>Advanced</span>
+            </label>
+            <div class="menu-advanced">
+              <div
+                class="global-sync-row"
+                title="Compensates for recording latency. ◀ if your voice plays late, ▶ if early."
+              >
+                <span class="global-sync-label">Global sync offset</span>
+                <div class="timeline-sync">
+                  <button id="offsetEarlier" class="icon-btn" type="button" title="10 ms earlier">◀</button>
+                  <span id="offsetReadout" class="track-sync-ms" title="Double-click to reset to default">+200 ms</span>
+                  <button id="offsetLater" class="icon-btn" type="button" title="10 ms later">▶</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="menu-item menu-select">
+              <span class="menu-select-label">Microphone mode</span>
+              <select id="advRawMic" aria-label="Microphone mode">
+                <option value="auto">Auto (headphones)</option>
+                <option value="on">Raw Mic</option>
+                <option value="off">Filtered Mic</option>
+              </select>
+            </div>
+
+            <div class="menu-divider"></div>
+
+            <button id="aboutBtn" class="menu-item" type="button" role="menuitem">About Jam-in!</button>
+          </div>
+        </div>
 
         <div class="search-wrap">
           <form id="searchForm" class="url-row" autocomplete="off">
@@ -47,45 +89,6 @@
             <div class="history-head">Recorded videos</div>
             <ul id="historyList" class="history-list"></ul>
             <p id="historyEmpty" class="history-empty">No recordings yet. Record a take and the video shows up here.</p>
-          </div>
-        </div>
-
-        <div class="topbar-actions">
-          <div class="io-actions desktop-only">
-            <button id="exportBtn" class="btn ghost small" type="button" title="Export tracks as a .jmn file">Export</button>
-            <button id="importBtn" class="btn ghost small" type="button" title="Import a .jmn file">Import</button>
-          </div>
-          <button id="shareBtn" class="icon-btn topbar-icon mobile-only" type="button" title="Share tracks">↗</button>
-          <input id="importFile" type="file" accept=".jmn,.zip,application/zip" hidden />
-
-          <div class="advanced-wrap topbar-advanced">
-            <button id="advancedBtn" class="icon-btn topbar-icon" type="button" title="Advanced settings" aria-haspopup="true" aria-expanded="false">⚙</button>
-            <div id="advancedPanel" class="advanced-panel" hidden>
-              <div class="advanced-head">Advanced</div>
-              <div
-                class="global-sync-row"
-                title="Compensates for recording latency. ◀ if your voice plays late, ▶ if early."
-              >
-                <span class="global-sync-label">Global sync offset</span>
-                <div class="timeline-sync">
-                  <button id="offsetEarlier" class="icon-btn" type="button" title="10 ms earlier">◀</button>
-                  <span id="offsetReadout" class="track-sync-ms" title="Double-click to reset to default">+200 ms</span>
-                  <button id="offsetLater" class="icon-btn" type="button" title="10 ms later">▶</button>
-                </div>
-              </div>
-              <label class="advanced-option">
-                <input type="checkbox" id="advNudgeChk" />
-                <span>Per-take fine-tune (nudge buttons on tracks)</span>
-              </label>
-              <label class="advanced-option">
-                <span class="advanced-option-label">Raw mic</span>
-                <select id="advRawMic" aria-label="Raw mic mode">
-                  <option value="auto">Auto (headphones)</option>
-                  <option value="on">Always on</option>
-                  <option value="off">Always off</option>
-                </select>
-              </label>
-            </div>
           </div>
         </div>
       </header>
@@ -130,6 +133,24 @@
       <div class="modal-actions">
         <button id="keepTakeNo" class="btn ghost" type="button">No, discard</button>
         <button id="keepTakeYes" class="btn primary" type="button">Yes, save</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="aboutModal" class="modal" hidden>
+    <div class="modal-backdrop" aria-hidden="true"></div>
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="aboutTitle">
+      <h2 id="aboutTitle">About Jam-in!</h2>
+      <p>Record your voice over any YouTube video and layer your own vocal takes right in the browser.</p>
+      <ul class="about-list">
+        <li>Recording starts as you <strong>play</strong>; <strong>pause</strong> will keep or discard the take.</li>
+        <li>Seeking mid-take discards that recording.</li>
+        <li>Wear headphones for the cleanest capture — set <em>Microphone mode</em> in the menu.</li>
+        <li>Takes are stored locally on this device. Export or import them as <code>.jmn</code> files.</li>
+      </ul>
+      <p class="about-foot">Works offline as an installable app. No account, no upload — your voice stays on your device.</p>
+      <div class="modal-actions">
+        <button id="aboutClose" class="btn primary" type="button">Close</button>
       </div>
     </div>
   </div>

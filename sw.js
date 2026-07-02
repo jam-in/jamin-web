@@ -4,7 +4,7 @@
 // loads offline so an installed PWA opens instantly.
 // ============================================================
 
-const CACHE = "jamin-shell-v23";
+const CACHE = "jamin-shell-v24";
 const SHELL = [
   "./",
   "./index.html",
@@ -21,7 +21,7 @@ const SHELL = [
   "./js/timeline-playhead.js",
   "./js/history-ui.js",
   "./js/export-import.js",
-  "./js/advanced-ui.js",
+  "./js/menu-ui.js",
   "./js/audio-devices.js",
   "./js/pwa.js",
   "./js/db.js",

@@ -69,7 +69,7 @@ export class Player {
     await loadYouTubeAPI();
     this.videoId = videoId;
 
-    if (this.yt) {
+    if (this.yt && this.yt.loadVideoById) {
       this.yt.loadVideoById(videoId);
       await waitForDuration(this, videoId);
       return;
