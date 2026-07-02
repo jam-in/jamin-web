@@ -4,7 +4,7 @@
 // no separate record button — we are always potentially recording.
 
 import { SEEK_DETECT_SEC } from "../constants.js";
-import { reportError } from "../errors.js";
+import { reportError, reportWarning } from "../errors.js";
 import { formatTime } from "../ui.js";
 import { computePeaks, isSilentOrNoise } from "../waveform.js";
 import { getEffectiveRawMic } from "../audio-devices.js";
@@ -196,18 +196,53 @@ export function createRecordingSession({
     }
   }
 
+  // Drop the in-progress take without prompting (used when a seek makes the
+  // recording meaningless). Stops the recorder and resets state.
+  async function discardTake() {
+    if (!active) return;
+    active = false;
+    hideIndicator();
+    engine.stop();
+    stopUiLoop();
+    lastVideoTime = null;
+    emitState();
+    try {
+      await recorder.stop();
+    } catch (error) {
+      reportError("discardTake", error, null, notify);
+    }
+  }
+
+  // Seeking (YT scrubber or the green playhead) breaks continuity, so the take
+  // is thrown away rather than kept. Warn, but don't block the user.
+  async function handleSeekDuringTake() {
+    reportWarning("recording.seek", "Discarded in-progress take because the video was seeked.");
+    notify("Recording discarded — you seeked mid-take.", "warn");
+    await discardTake();
+    // Honour "always record on play": if playback keeps going past the seek,
+    // start a fresh take from the new position.
+    if (player.getState() === STATE.PLAYING) {
+      engine.start();
+      startTake();
+    }
+  }
+
   function tickUi() {
     if (!active) return;
 
-    const currentTime = player.getCurrentTime();
-    const playerState = player.getState();
+    // Only track position while actually playing. During buffering (e.g. right
+    // after a seek) getCurrentTime already reports the new target, so updating
+    // lastVideoTime here would mask the seek and let the old take run on.
+    if (player.getState() !== STATE.PLAYING) return;
 
-    // A seek mid-take is a discontinuity: pause so the take is finalized, then
-    // the next play starts a fresh take at the new position.
-    if (lastVideoTime != null && playerState !== STATE.BUFFERING) {
+    const currentTime = player.getCurrentTime();
+
+    // A seek mid-take is a discontinuity: discard this take (and start a fresh
+    // one from the new position while playback continues).
+    if (lastVideoTime != null) {
       const jump = Math.abs(currentTime - lastVideoTime);
       if (jump > SEEK_DETECT_SEC) {
-        player.pause();
+        handleSeekDuringTake();
         return;
       }
     }

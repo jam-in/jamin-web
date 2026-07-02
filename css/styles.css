@@ -11,6 +11,7 @@
   --accent: #6c8cff;
   --accent-2: #00d7a3;
   --danger: #ff5d6c;
+  --warn: #f5a623;
   --record: #ff3b46;
   --border: #2a2f3d;
   --radius: 12px;
@@ -26,6 +27,7 @@ html[data-theme="light"] {
   --accent: #3a5cff;
   --accent-2: #00a07a;
   --danger: #e23744;
+  --warn: #c77700;
   --record: #e0202b;
   --border: #d8dbe6;
   --shadow: 0 6px 24px rgba(20, 25, 40, 0.12);
@@ -759,4 +761,5 @@ html[data-nudge="on"] .timeline-sync {
   max-width: min(90vw, 480px);
 }
 .toast.error { border-color: var(--danger); color: var(--danger); }
+.toast.warn { border-color: var(--warn); color: var(--warn); }
 .toast.success { border-color: var(--accent-2); }
