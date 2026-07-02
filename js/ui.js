@@ -13,7 +13,6 @@ export function bindElements() {
       "advancedPanel",
       "advNudgeChk",
       "advRawMic",
-      "recBtn",
       "recIndicator",
       "recTimer",
       "offsetEarlier",

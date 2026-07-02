@@ -3,7 +3,7 @@
 import * as db from "../db.js";
 import { BLOCKED_VIDEO_IDS, DEFAULT_VIDEO_ID, STORAGE_KEYS } from "../constants.js";
 import { reportError, reportWarning } from "../errors.js";
-import { describeYouTubeError, enableRecordButton, setPlayerOverlay } from "../video.js";
+import { describeYouTubeError, setPlayerOverlay } from "../video.js";
 
 const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
@@ -64,7 +64,6 @@ export function createVideoStore({ player, trackStore, elements, bus, notify }) 
         setPlayerOverlay(elements, null);
         currentVideoId = videoId;
         if (persist) localStorage.setItem(STORAGE_KEYS.lastVideo, videoId);
-        enableRecordButton(elements, true);
 
         await trackStore.loadForVideo(videoId);
         bus.emit("video:loaded", { videoId });
@@ -75,7 +74,6 @@ export function createVideoStore({ player, trackStore, elements, bus, notify }) 
         const message = describeYouTubeError(code);
         reportError("loadVideo", error, message, notify);
         setPlayerOverlay(elements, message);
-        enableRecordButton(elements, false);
         if (persist && localStorage.getItem(STORAGE_KEYS.lastVideo) === videoId) {
           localStorage.removeItem(STORAGE_KEYS.lastVideo);
         }

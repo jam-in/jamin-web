@@ -97,7 +97,6 @@
                 </label>
               </div>
             </div>
-            <button id="recBtn" class="btn record" disabled>● Record</button>
             <span id="recIndicator" class="rec-indicator" hidden aria-live="polite">● REC <span id="recTimer">0:00</span></span>
           </div>
         </div>
@@ -110,7 +109,7 @@
         <div id="trackList" class="timeline-tracks"></div>
         <div id="playhead" class="timeline-playhead" hidden></div>
       </div>
-      <p id="emptyHint" class="empty-hint">No tracks yet. Press <strong>Record</strong> while the video plays to lay down a take.</p>
+      <p id="emptyHint" class="empty-hint">No tracks yet. Press <strong>play</strong> and sing — pause to keep your take.</p>
     </section>
   </main>
 
@@ -130,10 +129,10 @@
     <div class="modal-backdrop" aria-hidden="true"></div>
     <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="keepTakeTitle">
       <h2 id="keepTakeTitle">Keep this take?</h2>
-      <p>Recording stopped. Save it as a track?</p>
+      <p>Playback paused. Save this recording?</p>
       <div class="modal-actions">
-        <button id="keepTakeNo" class="btn ghost" type="button">No</button>
-        <button id="keepTakeYes" class="btn primary" type="button">Yes, keep</button>
+        <button id="keepTakeNo" class="btn ghost" type="button">No, discard</button>
+        <button id="keepTakeYes" class="btn primary" type="button">Yes, save</button>
       </div>
     </div>
   </div>

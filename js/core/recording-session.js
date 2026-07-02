@@ -1,10 +1,12 @@
-// Recording session state machine — mic capture tied to video playback.
+// Recording session — mic capture driven purely by video playback.
+// The video transport IS the record control: playing captures a take, and
+// pausing (or ending) finalizes it and prompts to keep or discard. There is
+// no separate record button — we are always potentially recording.
 
 import { SEEK_DETECT_SEC } from "../constants.js";
 import { reportError } from "../errors.js";
 import { formatTime } from "../ui.js";
 import { computePeaks } from "../waveform.js";
-import { enableRecordButton } from "../video.js";
 import { getEffectiveRawMic } from "../audio-devices.js";
 import { STATE } from "../youtube.js";
 
@@ -19,35 +21,21 @@ export function createRecordingSession({
   bus,
   notify,
 }) {
-  let isRecording = false;
-  let isRecordingPaused = false;
+  // A take is "active" while the mic is capturing the current play segment.
+  let active = false;
   let keepTakePending = false;
-  let finalizingRecording = false;
+  let finalizing = false;
   let recStartVideoTime = 0;
-  let recActiveMs = 0;
-  let recSegmentStartedAt = 0;
+  let recStartedAt = 0;
   let lastVideoTime = null;
   let uiTimer = null;
 
   function emitState() {
-    bus.emit("recording:state-changed", { isRecording, isRecordingPaused });
-  }
-
-  function markSegmentEnd() {
-    if (recSegmentStartedAt) {
-      recActiveMs += Date.now() - recSegmentStartedAt;
-      recSegmentStartedAt = 0;
-    }
+    bus.emit("recording:state-changed", { active });
   }
 
   function elapsedSec() {
-    let milliseconds = recActiveMs;
-    if (recSegmentStartedAt) milliseconds += Date.now() - recSegmentStartedAt;
-    return milliseconds / 1000;
-  }
-
-  function syncMonitorDuringRecording() {
-    engine.start();
+    return recStartedAt ? (Date.now() - recStartedAt) / 1000 : 0;
   }
 
   function stopUiLoop() {
@@ -60,16 +48,24 @@ export function createRecordingSession({
     uiTimer = setInterval(() => tickUi(), 250);
   }
 
+  function showIndicator() {
+    elements.recIndicator.hidden = false;
+    elements.recIndicator.innerHTML = `● REC <span id="recTimer">0:00</span>`;
+    elements.recTimer = document.getElementById("recTimer");
+  }
+
+  function hideIndicator() {
+    elements.recIndicator.hidden = true;
+  }
+
   function confirmKeepTake() {
     return new Promise((resolve) => {
       keepTakePending = true;
-      elements.recBtn.disabled = true;
       elements.keepTakeModal.hidden = false;
 
       const finish = (keep) => {
         keepTakePending = false;
         elements.keepTakeModal.hidden = true;
-        enableRecordButton(elements, !!videoStore.getVideoId());
         elements.keepTakeYes.removeEventListener("click", onYes);
         elements.keepTakeNo.removeEventListener("click", onNo);
         document.removeEventListener("keydown", onKey);
@@ -89,14 +85,13 @@ export function createRecordingSession({
     });
   }
 
-  async function start() {
-    if (keepTakePending) return;
+  // Begin capturing a take for the play segment that just started.
+  async function startTake() {
+    if (active || keepTakePending || finalizing) return;
+    if (!videoStore.getVideoId()) return;
 
     settings.setRawMic(getEffectiveRawMic());
-    const rawMic = getEffectiveRawMic();
-
-    engine.stop();
-    if (rawMic) recorder.resetMic();
+    if (getEffectiveRawMic()) recorder.resetMic();
 
     try {
       await recorder.ensureMic();
@@ -105,60 +100,37 @@ export function createRecordingSession({
       return;
     }
 
-    player.play();
+    // The mic request is async; if the user paused (or seeked) meanwhile, abort
+    // so we don't start capturing over a stopped video.
+    if (player.getState() !== STATE.PLAYING) return;
+
     recStartVideoTime = player.getCurrentTime();
-    recActiveMs = 0;
-    recSegmentStartedAt = Date.now();
+    recStartedAt = Date.now();
     lastVideoTime = recStartVideoTime;
-    isRecordingPaused = false;
-    await recorder.start();
-    isRecording = true;
 
-    elements.recBtn.textContent = "■ Stop take";
-    elements.recBtn.classList.add("is-recording");
-    elements.recIndicator.hidden = false;
-    elements.recIndicator.innerHTML = `● REC <span id="recTimer">0:00</span>`;
-    elements.recTimer = document.getElementById("recTimer");
+    try {
+      await recorder.start();
+    } catch (error) {
+      reportError("startTake", error, null, notify);
+      return;
+    }
+    active = true;
 
-    syncMonitorDuringRecording();
-    emitState();
+    showIndicator();
     startUiLoop();
-  }
-
-  function pause() {
-    if (!isRecording || isRecordingPaused) return;
-    markSegmentEnd();
-    recorder.pause();
-    isRecordingPaused = true;
-    elements.recIndicator.textContent = "⏸ Paused";
     emitState();
   }
 
-  function resume() {
-    if (!isRecording || !isRecordingPaused) return;
-    recorder.resume();
-    isRecordingPaused = false;
-    recSegmentStartedAt = Date.now();
-    elements.recIndicator.innerHTML =
-      `● REC <span id="recTimer">${formatTime(elapsedSec())}</span>`;
-    elements.recTimer = document.getElementById("recTimer");
-    emitState();
-  }
+  // End the current take and ask whether to keep it. By the time we get here
+  // the player is already paused (user pause), ended, or paused for a seek.
+  async function finalizeTake() {
+    if (!active || finalizing) return;
+    finalizing = true;
+    active = false;
 
-  async function finalize({ pausePlayer = false } = {}) {
-    if (!isRecording || finalizingRecording) return;
-    finalizingRecording = true;
-    isRecording = false;
-    isRecordingPaused = false;
-
-    elements.recBtn.textContent = "● Record";
-    elements.recBtn.classList.remove("is-recording");
-    elements.recIndicator.hidden = true;
-
-    if (pausePlayer) player.pause();
+    hideIndicator();
     engine.stop();
     stopUiLoop();
-    markSegmentEnd();
     lastVideoTime = null;
     emitState();
 
@@ -166,8 +138,8 @@ export function createRecordingSession({
     try {
       result = await recorder.stop();
     } catch (error) {
-      reportError("finalizeRecording", error, null, notify);
-      finalizingRecording = false;
+      reportError("finalizeTake", error, null, notify);
+      finalizing = false;
       return;
     }
 
@@ -182,11 +154,11 @@ export function createRecordingSession({
       peaks = computePeaks(buffer);
       audioContext.close();
     } catch (error) {
-      reportError("finalizeRecording.decode", error, null, notify);
+      reportError("finalizeTake.decode", error, null, notify);
     }
 
     const keep = await confirmKeepTake();
-    finalizingRecording = false;
+    finalizing = false;
     if (!keep) {
       notify("Take discarded.");
       return;
@@ -211,61 +183,49 @@ export function createRecordingSession({
       await trackStore.add(trackData);
       notify("Take saved.", "success");
     } catch (error) {
-      reportError("finalizeRecording.save", error, "Could not save this take.", notify);
+      reportError("finalizeTake.save", error, "Could not save this take.", notify);
     }
   }
 
   function tickUi() {
-    if (!isRecording) return;
+    if (!active) return;
 
     const currentTime = player.getCurrentTime();
     const playerState = player.getState();
 
+    // A seek mid-take is a discontinuity: pause so the take is finalized, then
+    // the next play starts a fresh take at the new position.
     if (lastVideoTime != null && playerState !== STATE.BUFFERING) {
       const jump = Math.abs(currentTime - lastVideoTime);
-      const threshold = (isRecordingPaused || playerState === STATE.PAUSED) ? 0.15 : SEEK_DETECT_SEC;
-      if (jump > threshold) {
-        finalize({ pausePlayer: false });
+      if (jump > SEEK_DETECT_SEC) {
+        player.pause();
         return;
       }
     }
     lastVideoTime = currentTime;
 
-    if (!isRecordingPaused && elements.recTimer) {
+    if (elements.recTimer) {
       elements.recTimer.textContent = formatTime(elapsedSec());
     }
   }
 
   function onPlayerStateChange(state) {
     if (state === STATE.PLAYING) {
-      if (isRecording && isRecordingPaused) resume();
-      syncMonitorDuringRecording();
-      if (isRecording) startUiLoop();
+      if (keepTakePending || finalizing) return;
+      engine.start();
+      startTake();
     } else if (state === STATE.PAUSED) {
       engine.stop();
-      if (isRecording && !isRecordingPaused) pause();
-      if (isRecording) startUiLoop();
-      else stopUiLoop();
+      finalizeTake();
     } else if (state === STATE.ENDED) {
       engine.stop();
-      if (isRecording) finalize({ pausePlayer: false });
-      stopUiLoop();
+      finalizeTake();
     } else if (state === STATE.BUFFERING) {
       engine.stop();
     }
   }
 
   return {
-    isKeepTakePending() {
-      return keepTakePending;
-    },
-    isRecording() {
-      return isRecording;
-    },
-    start,
-    finalize,
     onPlayerStateChange,
-    startUiLoop,
-    stopUiLoop,
   };
 }

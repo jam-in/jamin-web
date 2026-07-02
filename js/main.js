@@ -67,7 +67,7 @@ initLatencyOffset({ elements, settings });
 initAdvanced({ elements, bus, trackList, settings });
 initAudioDevices({ elements, settings });
 initSearch({ elements, videoStore, settings, notify });
-initRecording({ elements, player, recordingSession });
+initRecording({ player, recordingSession });
 initExportImport({ elements, trackStore, videoStore, notify });
 initPwa({ elements });
 

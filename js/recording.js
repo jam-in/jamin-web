@@ -1,14 +1,6 @@
-// Recording session wiring — player state and record button.
+// Recording session wiring — the video transport drives recording, so we just
+// forward player state changes; there is no record button anymore.
 
-export function initRecording({ elements, player, recordingSession }) {
-  elements.recBtn.addEventListener("click", async () => {
-    if (recordingSession.isKeepTakePending()) return;
-    if (recordingSession.isRecording()) {
-      await recordingSession.finalize({ pausePlayer: true });
-    } else {
-      await recordingSession.start();
-    }
-  });
-
+export function initRecording({ player, recordingSession }) {
   player.onStateChange((state) => recordingSession.onPlayerStateChange(state));
 }
