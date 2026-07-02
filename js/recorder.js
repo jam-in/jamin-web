@@ -152,6 +152,9 @@ export class Recorder {
         const type = this.mimeType || "audio/webm";
         const blob = new Blob(this.chunks, { type });
         this.chunks = [];
+        // Release the mic so the browser's tab recording indicator turns off
+        // when we're not actively capturing. It's re-acquired on the next take.
+        this.releaseMic();
         resolve({ blob, mimeType: type });
       };
       this.recorder.stop();
