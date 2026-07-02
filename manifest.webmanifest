@@ -1,0 +1,37 @@
+{
+  "name": "Jam-in! — sing over YouTube",
+  "short_name": "Jam-in!",
+  "description": "Record voice takes over YouTube videos and play them back in sync.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0f1117",
+  "theme_color": "#0f1117",
+  "launch_handler": {
+    "client_mode": "focus-existing"
+  },
+  "file_handlers": [
+    {
+      "action": "./index.html",
+      "accept": {
+        "application/zip": [".jmn"],
+        "application/octet-stream": [".jmn"]
+      }
+    }
+  ],
+  "icons": [
+    {
+      "src": "icons/jamin_any.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/jamin_maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

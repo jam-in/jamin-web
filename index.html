@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f1117" media="(prefers-color-scheme: dark)" />
+  <meta name="theme-color" content="#f5f6fa" media="(prefers-color-scheme: light)" />
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
+  <title>Jam-in! &mdash; sing over YouTube</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icons/jamin_icon.png" type="image/png" />
+  <link rel="apple-touch-icon" href="icons/jamin_any.png" />
+  <link rel="stylesheet" href="css/styles.css" />
+  <script>
+    // Match the OS colour scheme before first paint to avoid a theme flash.
+    (function () {
+      var prefersLight = window.matchMedia
+        && window.matchMedia("(prefers-color-scheme: light)").matches;
+      document.documentElement.setAttribute("data-theme", prefersLight ? "light" : "dark");
+    })();
+  </script>
+</head>
+<body>
+  <main class="layout">
+    <section class="stage">
+      <!-- Zone 1: top bar -->
+      <header class="topbar">
+        <div class="menu-wrap">
+          <button id="logoBtn" class="topbar-logo-btn" type="button" title="Menu" aria-haspopup="true" aria-expanded="false" aria-controls="mainMenu">
+            <img src="icons/jam-in logo2 alpha.png" alt="Jam-in!" class="topbar-logo" />
+          </button>
+
+          <div id="mainMenu" class="app-menu" role="menu" hidden>
+            <button id="exportBtn" class="menu-item desktop-only" type="button" role="menuitem">Export takes…</button>
+            <button id="importBtn" class="menu-item desktop-only" type="button" role="menuitem">Import takes…</button>
+            <button id="shareBtn" class="menu-item mobile-only" type="button" role="menuitem">Share takes…</button>
+            <input id="importFile" type="file" accept=".jmn,.zip,application/zip" hidden />
+
+            <div class="menu-divider"></div>
+
+            <label class="menu-item menu-check">
+              <input type="checkbox" id="advNudgeChk" />
+              <span>Advanced</span>
+            </label>
+            <div class="menu-advanced">
+              <div
+                class="global-sync-row"
+                title="Compensates for recording latency. ◀ if your voice plays late, ▶ if early."
+              >
+                <span class="global-sync-label">Global sync offset</span>
+                <div class="timeline-sync">
+                  <button id="offsetEarlier" class="icon-btn" type="button" title="10 ms earlier">◀</button>
+                  <span id="offsetReadout" class="track-sync-ms" title="Double-click to reset to default">+200 ms</span>
+                  <button id="offsetLater" class="icon-btn" type="button" title="10 ms later">▶</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="menu-item menu-select">
+              <span class="menu-select-label">Microphone mode</span>
+              <select id="advRawMic" aria-label="Microphone mode">
+                <option value="auto">Auto (headphones)</option>
+                <option value="on">Raw Mic</option>
+                <option value="off">Filtered Mic</option>
+              </select>
+            </div>
+
+            <div class="menu-divider"></div>
+
+            <button id="aboutBtn" class="menu-item" type="button" role="menuitem">About Jam-in!</button>
+          </div>
+        </div>
+
+        <div class="search-wrap">
+          <form id="searchForm" class="url-row" autocomplete="off">
+            <input
+              id="searchInput"
+              class="url-input"
+              type="text"
+              placeholder="Search a song…"
+              aria-label="Search YouTube"
+              aria-autocomplete="list"
+              aria-expanded="false"
+              aria-controls="searchResults"
+            />
+          </form>
+          <div id="searchResults" class="search-results" role="listbox" hidden></div>
+          <div id="historyPanel" class="history-panel" hidden>
+            <div class="history-head">Recorded videos</div>
+            <ul id="historyList" class="history-list"></ul>
+            <p id="historyEmpty" class="history-empty">No recordings yet. Record a take and the video shows up here.</p>
+          </div>
+        </div>
+      </header>
+
+      <!-- Zone 2: YouTube player -->
+      <div class="player-wrap">
+        <div id="player"></div>
+        <div id="playerOverlay" class="player-overlay" hidden>
+          <p id="playerOverlayMsg">Loading player…</p>
+        </div>
+      </div>
+
+      <!-- Zone 3: track list -->
+      <div id="timelinePanel" class="timeline-panel">
+        <span id="timelineRulerStart" class="timeline-time-label timeline-time-start">0:00</span>
+        <span id="timelineRulerEnd" class="timeline-time-label timeline-time-end">0:00</span>
+        <div id="trackList" class="timeline-tracks"></div>
+        <div id="playhead" class="timeline-playhead" hidden></div>
+        <span id="recIndicator" class="rec-indicator" hidden aria-live="polite">● REC <span id="recTimer">0:00</span></span>
+      </div>
+      <p id="emptyHint" class="empty-hint">No tracks yet. Press <strong>play</strong> and sing — pause to keep your take.</p>
+    </section>
+  </main>
+
+  <div id="deleteTakeModal" class="modal" hidden>
+    <div class="modal-backdrop" aria-hidden="true"></div>
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="deleteTakeTitle">
+      <h2 id="deleteTakeTitle">Delete this take?</h2>
+      <p id="deleteTakeMsg">This cannot be undone.</p>
+      <div class="modal-actions">
+        <button id="deleteTakeNo" class="btn ghost" type="button">No</button>
+        <button id="deleteTakeYes" class="btn primary" type="button">Yes, delete</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="keepTakeModal" class="modal" hidden>
+    <div class="modal-backdrop" aria-hidden="true"></div>
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="keepTakeTitle">
+      <h2 id="keepTakeTitle">Keep this take?</h2>
+      <p>Playback paused. Save this recording?</p>
+      <div class="modal-actions">
+        <button id="keepTakeNo" class="btn ghost" type="button">No, discard</button>
+        <button id="keepTakeYes" class="btn primary" type="button">Yes, save</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="aboutModal" class="modal" hidden>
+    <div class="modal-backdrop" aria-hidden="true"></div>
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="aboutTitle">
+      <h2 id="aboutTitle">About Jam-in!</h2>
+      <p>Record your voice over any YouTube video and layer your own vocal takes right in the browser.</p>
+      <ul class="about-list">
+        <li>Recording starts as you <strong>play</strong>; <strong>pause</strong> will keep or discard the take.</li>
+        <li>Seeking mid-take discards that recording.</li>
+        <li>Wear headphones for the cleanest capture — set <em>Microphone mode</em> in the menu.</li>
+        <li>Takes are stored locally on this device. Export or import them as <code>.jmn</code> files.</li>
+      </ul>
+      <p class="about-foot">Works offline as an installable app. No account, no upload — your voice stays on your device.</p>
+      <div class="modal-actions">
+        <button id="aboutClose" class="btn primary" type="button">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
