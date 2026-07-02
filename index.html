@@ -57,6 +57,36 @@
           </div>
           <button id="shareBtn" class="icon-btn topbar-icon mobile-only" type="button" title="Share tracks">↗</button>
           <input id="importFile" type="file" accept=".jmn,.zip,application/zip" hidden />
+
+          <div class="advanced-wrap topbar-advanced">
+            <button id="advancedBtn" class="icon-btn topbar-icon" type="button" title="Advanced settings" aria-haspopup="true" aria-expanded="false">⚙</button>
+            <div id="advancedPanel" class="advanced-panel" hidden>
+              <div class="advanced-head">Advanced</div>
+              <div
+                class="global-sync-row"
+                title="Compensates for recording latency. ◀ if your voice plays late, ▶ if early."
+              >
+                <span class="global-sync-label">Global sync offset</span>
+                <div class="timeline-sync">
+                  <button id="offsetEarlier" class="icon-btn" type="button" title="10 ms earlier">◀</button>
+                  <span id="offsetReadout" class="track-sync-ms" title="Double-click to reset to default">+200 ms</span>
+                  <button id="offsetLater" class="icon-btn" type="button" title="10 ms later">▶</button>
+                </div>
+              </div>
+              <label class="advanced-option">
+                <input type="checkbox" id="advNudgeChk" />
+                <span>Per-take fine-tune (nudge buttons on tracks)</span>
+              </label>
+              <label class="advanced-option">
+                <span class="advanced-option-label">Raw mic</span>
+                <select id="advRawMic" aria-label="Raw mic mode">
+                  <option value="auto">Auto (headphones)</option>
+                  <option value="on">Always on</option>
+                  <option value="off">Always off</option>
+                </select>
+              </label>
+            </div>
+          </div>
         </div>
       </header>
 
@@ -66,48 +96,15 @@
         <div id="playerOverlay" class="player-overlay" hidden>
           <p id="playerOverlayMsg">Loading player…</p>
         </div>
-        <div class="player-controls">
-          <div class="player-rec-row">
-            <div class="advanced-wrap">
-              <button id="advancedBtn" class="icon-btn rec-gear" type="button" title="Advanced settings" aria-haspopup="true" aria-expanded="false">⚙</button>
-              <div id="advancedPanel" class="advanced-panel" hidden>
-                <div class="advanced-head">Advanced</div>
-                <div
-                  class="global-sync-row"
-                  title="Compensates for recording latency. ◀ if your voice plays late, ▶ if early."
-                >
-                  <span class="global-sync-label">Global sync offset</span>
-                  <div class="timeline-sync">
-                    <button id="offsetEarlier" class="icon-btn" type="button" title="10 ms earlier">◀</button>
-                    <span id="offsetReadout" class="track-sync-ms" title="Double-click to reset to default">+200 ms</span>
-                    <button id="offsetLater" class="icon-btn" type="button" title="10 ms later">▶</button>
-                  </div>
-                </div>
-                <label class="advanced-option">
-                  <input type="checkbox" id="advNudgeChk" />
-                  <span>Per-take fine-tune (nudge buttons on tracks)</span>
-                </label>
-                <label class="advanced-option">
-                  <span class="advanced-option-label">Raw mic</span>
-                  <select id="advRawMic" aria-label="Raw mic mode">
-                    <option value="auto">Auto (headphones)</option>
-                    <option value="on">Always on</option>
-                    <option value="off">Always off</option>
-                  </select>
-                </label>
-              </div>
-            </div>
-            <span id="recIndicator" class="rec-indicator" hidden aria-live="polite">● REC <span id="recTimer">0:00</span></span>
-          </div>
-        </div>
       </div>
 
       <!-- Zone 3: track list -->
-      <div id="timelinePanel" class="timeline-panel" hidden>
+      <div id="timelinePanel" class="timeline-panel">
         <span id="timelineRulerStart" class="timeline-time-label timeline-time-start">0:00</span>
         <span id="timelineRulerEnd" class="timeline-time-label timeline-time-end">0:00</span>
         <div id="trackList" class="timeline-tracks"></div>
         <div id="playhead" class="timeline-playhead" hidden></div>
+        <span id="recIndicator" class="rec-indicator" hidden aria-live="polite">● REC <span id="recTimer">0:00</span></span>
       </div>
       <p id="emptyHint" class="empty-hint">No tracks yet. Press <strong>play</strong> and sing — pause to keep your take.</p>
     </section>

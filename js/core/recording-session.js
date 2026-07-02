@@ -30,8 +30,55 @@ export function createRecordingSession({
   let lastVideoTime = null;
   let uiTimer = null;
 
+  // Live waveform sampling (Web Audio analyser tapping the mic stream).
+  let liveCtx = null;
+  let liveAnalyser = null;
+  let liveSource = null;
+  let liveData = null;
+  let liveTimer = null;
+
   function emitState() {
     bus.emit("recording:state-changed", { active });
+  }
+
+  function startLiveSampling() {
+    const stream = recorder.stream;
+    if (!stream) return;
+    try {
+      if (!liveCtx) liveCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (liveCtx.state === "suspended") liveCtx.resume();
+      liveSource = liveCtx.createMediaStreamSource(stream);
+      liveAnalyser = liveCtx.createAnalyser();
+      liveAnalyser.fftSize = 1024;
+      liveSource.connect(liveAnalyser); // analyser only — never to destination
+      liveData = new Float32Array(liveAnalyser.fftSize);
+      liveTimer = setInterval(sampleLive, 60);
+    } catch (error) {
+      reportWarning("recording.liveSampler", error);
+    }
+  }
+
+  function sampleLive() {
+    if (!liveAnalyser) return;
+    liveAnalyser.getFloatTimeDomainData(liveData);
+    let peak = 0;
+    for (let i = 0; i < liveData.length; i++) {
+      const a = Math.abs(liveData[i]);
+      if (a > peak) peak = a;
+    }
+    bus.emit("recording:live-sample", { peak });
+  }
+
+  function stopLiveSampling() {
+    if (liveTimer) {
+      clearInterval(liveTimer);
+      liveTimer = null;
+    }
+    if (liveSource) {
+      try { liveSource.disconnect(); } catch { /* already gone */ }
+      liveSource = null;
+    }
+    liveAnalyser = null;
   }
 
   function elapsedSec() {
@@ -118,6 +165,8 @@ export function createRecordingSession({
 
     showIndicator();
     startUiLoop();
+    bus.emit("recording:take-started", { startTime: recStartVideoTime });
+    startLiveSampling();
     emitState();
   }
 
@@ -131,6 +180,7 @@ export function createRecordingSession({
     hideIndicator();
     engine.stop();
     stopUiLoop();
+    stopLiveSampling();
     lastVideoTime = null;
     emitState();
 
@@ -162,6 +212,7 @@ export function createRecordingSession({
     // Don't bother the user with a keep/discard prompt for an empty take.
     if (silent) {
       finalizing = false;
+      bus.emit("recording:take-ended", { kept: false });
       notify("Nothing to keep — that take was silent.");
       return;
     }
@@ -169,9 +220,12 @@ export function createRecordingSession({
     const keep = await confirmKeepTake();
     finalizing = false;
     if (!keep) {
+      bus.emit("recording:take-ended", { kept: false });
       notify("Take discarded.");
       return;
     }
+
+    bus.emit("recording:take-ended", { kept: true });
 
     const videoId = videoStore.getVideoId();
     const trackData = {
@@ -204,7 +258,9 @@ export function createRecordingSession({
     hideIndicator();
     engine.stop();
     stopUiLoop();
+    stopLiveSampling();
     lastVideoTime = null;
+    bus.emit("recording:take-ended", { kept: false });
     emitState();
     try {
       await recorder.stop();

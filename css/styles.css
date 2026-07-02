@@ -353,9 +353,6 @@ html[data-platform="desktop"] .mobile-only { display: none !important; }
   overflow: hidden;
   box-shadow: var(--shadow);
 }
-.player-wrap .player-controls {
-  padding-bottom: 0;
-}
 .player-wrap > #player,
 .player-wrap iframe {
   position: absolute;
@@ -378,55 +375,6 @@ html[data-platform="desktop"] .mobile-only { display: none !important; }
   color: #fff;
   font-size: 15px;
   z-index: 5;
-}
-.player-controls {
-  position: absolute;
-  left: 50%;
-  bottom: 8px;
-  transform: translateX(-50%);
-  width: 60%;
-  max-width: 360px;
-  min-width: 240px;
-  z-index: 6;
-  pointer-events: none;
-}
-.player-rec-row {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  pointer-events: auto;
-}
-.player-rec-row .rec-indicator {
-  grid-column: 2;
-  justify-self: center;
-}
-.player-rec-row .advanced-wrap {
-  grid-column: 1;
-  justify-self: end;
-  margin-right: 8px;
-}
-/* Gear sits beside Record and shares its red, floating look. */
-.rec-gear {
-  width: 40px;
-  height: 40px;
-  border-radius: 999px;
-  font-size: 18px;
-  color: var(--record);
-  border: 1px solid var(--record);
-  background: rgba(15, 17, 23, 0.82);
-  backdrop-filter: blur(6px);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
-}
-.rec-gear:hover { background: rgba(15, 17, 23, 0.92); }
-html[data-theme="light"] .rec-gear {
-  background: rgba(255, 255, 255, 0.92);
-}
-/* Popover opens upward, away from the player's bottom edge. */
-.player-rec-row .advanced-panel {
-  top: auto;
-  bottom: calc(100% + 8px);
-  left: 0;
-  right: auto;
 }
 .global-sync-row {
   flex: none;
@@ -454,16 +402,23 @@ html[data-theme="light"] .rec-gear {
 }
 
 .rec-indicator {
+  position: absolute;
+  top: 3px;
+  left: 0;
+  transform: translateX(6px);
   color: var(--record);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   animation: blink 1s steps(2, start) infinite;
-  font-size: 12px;
+  font-size: 11px;
   white-space: nowrap;
-  background: rgba(0, 0, 0, 0.5);
-  padding: 4px 8px;
+  background: rgba(0, 0, 0, 0.55);
+  padding: 3px 7px;
   border-radius: 999px;
+  pointer-events: none;
+  z-index: 6;
 }
+html[data-theme="light"] .rec-indicator { background: rgba(255, 255, 255, 0.85); }
 @keyframes blink { 50% { opacity: 0.25; } }
 
 /* ---------- Sync offset ---------- */
@@ -489,6 +444,7 @@ html[data-theme="light"] .rec-gear {
   overflow: hidden;
   cursor: pointer;
 }
+.timeline-track.is-live .timeline-wave { opacity: 0.9; }
 .timeline-time-label {
   position: absolute;
   top: 4px;
@@ -505,6 +461,7 @@ html[data-theme="light"] .rec-gear {
 .timeline-tracks {
   display: flex;
   flex-direction: column;
+  min-height: 44px;
 }
 .timeline-track {
   position: relative;

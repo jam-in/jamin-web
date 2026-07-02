@@ -15,6 +15,12 @@ export function initPlayhead({ player, elements, bus }) {
     return Math.max(0, Math.min(1, ratio));
   }
 
+  function positionRecIndicator(ratio) {
+    if (elements.recIndicator && !elements.recIndicator.hidden) {
+      elements.recIndicator.style.left = `${ratio * 100}%`;
+    }
+  }
+
   function seekToRatio(ratio) {
     const duration = player.getDuration();
     if (duration <= 0) return;
@@ -24,6 +30,7 @@ export function initPlayhead({ player, elements, bus }) {
       elements.playhead.style.left = `${ratio * 100}%`;
       elements.playhead.hidden = elements.timelinePanel.hidden;
     }
+    positionRecIndicator(ratio);
   }
 
   function updatePlayhead() {
@@ -36,8 +43,10 @@ export function initPlayhead({ player, elements, bus }) {
     if (player.getState() !== STATE.BUFFERING) 
     {
       const t = Math.max(0, Math.min(duration, player.getCurrentTime()));
-      elements.playhead.style.left = `${(t / duration) * 100}%`;
+      const ratio = t / duration;
+      elements.playhead.style.left = `${ratio * 100}%`;
       elements.playhead.hidden = elements.timelinePanel.hidden;
+      positionRecIndicator(ratio);
     }
   }
 

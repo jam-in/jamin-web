@@ -76,12 +76,73 @@ export function createTrackListController({ trackStore, settings, videoStore, pl
     elements.trackList.querySelectorAll(".timeline-track").forEach(layoutTrackRow);
   }
 
+  // ---- Live recording waveform ----------------------------------------
+  // While a take records we draw its waveform in real time on a temporary row.
+  // It stays if the take is kept (replaced by the saved row) and vanishes if
+  // it's discarded.
+  let live = null; // { row, canvas, startTime, peaks }
+
+  function beginLive(startTime) {
+    endLive(false); // clear any stale live row first
+    const row = document.createElement("div");
+    row.className = "timeline-track is-live";
+
+    const canvas = document.createElement("canvas");
+    canvas.className = "timeline-wave";
+    row.append(canvas);
+
+    elements.trackList.prepend(row);
+    elements.emptyHint.hidden = true;
+    live = { row, canvas, startTime, peaks: [] };
+    drawLive();
+  }
+
+  function pushLiveSample(peak) {
+    if (!live) return;
+    live.peaks.push(peak);
+    drawLive();
+  }
+
+  function drawLive() {
+    if (!live) return;
+    const duration = player.getDuration() || 0;
+    if (duration <= 0 || !Number.isFinite(live.startTime)) return;
+    const frontier = player.getCurrentTime();
+    const segmentLeft = live.startTime / duration;
+    const segmentWidth = Math.max(0, (frontier - live.startTime) / duration);
+
+    // Raw mic peaks are small; normalize against the running max so the live
+    // waveform is as visible as the saved (normalized) one.
+    let max = 0.001;
+    for (let i = 0; i < live.peaks.length; i++) {
+      if (live.peaks[i] > max) max = live.peaks[i];
+    }
+    const normalized = live.peaks.map((p) => p / max);
+
+    drawTimelineWaveform(live.canvas, normalized, {
+      segmentLeft,
+      segmentWidth,
+      color: getAccentColor(),
+    });
+  }
+
+  function endLive(kept) {
+    if (!live) return;
+    // When kept, leave the row in place; the tracks:changed re-render replaces
+    // it with the saved take. When not kept, remove it now.
+    if (!kept) {
+      if (live.row.parentNode) live.row.remove();
+      elements.emptyHint.hidden = trackStore.getTracks().length > 0;
+    }
+    live = null;
+  }
+
   function renderTracks() {
     const tracks = trackStore.getTracks();
     elements.trackList.innerHTML = "";
+    live = null; // innerHTML reset drops any live row
     const hasTracks = tracks.length > 0;
     elements.emptyHint.hidden = hasTracks;
-    elements.timelinePanel.hidden = !videoStore.getVideoId();
 
     updateRuler();
 
@@ -119,6 +180,7 @@ export function createTrackListController({ trackStore, settings, videoStore, pl
     });
     updateRuler();
     layoutAllTrackRows();
+    drawLive();
     bus.emit("playhead:refresh");
   }
 
@@ -129,6 +191,10 @@ export function createTrackListController({ trackStore, settings, videoStore, pl
     redrawWaveforms();
     layoutAllTrackRows();
   });
+
+  bus.on("recording:take-started", (event) => beginLive(event.detail.startTime));
+  bus.on("recording:live-sample", (event) => pushLiveSample(event.detail.peak));
+  bus.on("recording:take-ended", (event) => endLive(event.detail.kept));
 
   return { renderTracks, redrawWaveforms, layoutAllTrackRows };
 }
