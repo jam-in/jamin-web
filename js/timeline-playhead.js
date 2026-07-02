@@ -3,8 +3,6 @@
 import { STATE } from "./youtube.js";
 
 export function initPlayhead({ player, elements, bus }) {
-  let rafId = null;
-  let animating = false;
   let dragging = false;
   let playheadDragged = false;
 
@@ -35,7 +33,8 @@ export function initPlayhead({ player, elements, bus }) {
       if (elements.playhead) elements.playhead.hidden = true;
       return;
     }
-    if (player.getState() !== STATE.BUFFERING) {
+    if (player.getState() !== STATE.BUFFERING) 
+    {
       const t = Math.max(0, Math.min(duration, player.getCurrentTime()));
       elements.playhead.style.left = `${(t / duration) * 100}%`;
       elements.playhead.hidden = elements.timelinePanel.hidden;
@@ -43,15 +42,12 @@ export function initPlayhead({ player, elements, bus }) {
   }
 
   function tick() {
-    updatePlayhead();
-    if (animating) rafId = requestAnimationFrame(tick);
-  }
-
-  function setAnimating(on) {
-    animating = on;
-    cancelAnimationFrame(rafId);
-    if (animating) rafId = requestAnimationFrame(tick);
-    else updatePlayhead();
+    try {
+      updatePlayhead();
+    } catch (error) {
+      console.error("Error updating playhead:", error);
+    }
+    requestAnimationFrame(tick);
   }
 
   function togglePlayPause() {
@@ -59,10 +55,6 @@ export function initPlayhead({ player, elements, bus }) {
     if (state === STATE.PLAYING) player.pause();
     else player.play();
   }
-
-  player.onStateChange((state) => {
-    setAnimating(state === STATE.PLAYING);
-  });
 
   elements.playhead?.addEventListener("pointerdown", (event) => {
     if (elements.timelinePanel.hidden) return;
@@ -118,4 +110,5 @@ export function initPlayhead({ player, elements, bus }) {
   bus.on("tracks:changed", () => updatePlayhead());
 
   updatePlayhead();
+  requestAnimationFrame(tick);
 }

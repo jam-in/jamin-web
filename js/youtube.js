@@ -102,12 +102,12 @@ export class Player {
     });
   }
 
-  play() { this.yt && this.yt.playVideo(); }
-  pause() { this.yt && this.yt.pauseVideo(); }
-  seekTo(sec) { this.yt && this.yt.seekTo(sec, true); }
-  getCurrentTime() { return this.yt ? this.yt.getCurrentTime() : 0; }
-  getDuration() { return this.yt ? this.yt.getDuration() : 0; }
-  getState() { return this.yt ? this.yt.getPlayerState() : -1; }
+  play() { this.yt && this.yt.playVideo && this.yt.playVideo(); }
+  pause() { this.yt && this.yt.pauseVideo && this.yt.pauseVideo(); }
+  seekTo(sec) { this.yt && this.yt.seekTo && this.yt.seekTo(sec, true); }
+  getCurrentTime() { return this.yt && this.yt.getCurrentTime ? this.yt.getCurrentTime() : 0; }
+  getDuration() { return this.yt && this.yt.getDuration ? this.yt.getDuration() : 0; }
+  getState() { return this.yt && this.yt.getPlayerState ? this.yt.getPlayerState() : -1; }
   // { video_id, title, author } — populated once the video metadata loads.
   getVideoData() { return this.yt && this.yt.getVideoData ? this.yt.getVideoData() : null; }
 }

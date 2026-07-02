@@ -27,13 +27,13 @@ import { initTimelineSync } from "./core/timeline-sync.js";
 const coarsePointer = window.matchMedia?.("(pointer: coarse)")?.matches;
 document.documentElement.dataset.platform = coarsePointer ? "mobile" : "desktop";
 
-const bus = createEventBus();
 const elements = bindElements();
 const player = new Player("player");
 const recorder = new Recorder();
 const engine = new PlaybackEngine(() => player.getCurrentTime());
 const notify = (message, kind) => showToast(elements, message, kind);
 
+const bus = createEventBus();
 const trackStore = createTrackStore({ engine, bus });
 const settings = createSettingsStore({ engine, recorder, bus });
 const videoStore = createVideoStore({ player, trackStore, elements, bus, notify });
