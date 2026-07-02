@@ -6,7 +6,7 @@
 import { SEEK_DETECT_SEC } from "../constants.js";
 import { reportError } from "../errors.js";
 import { formatTime } from "../ui.js";
-import { computePeaks } from "../waveform.js";
+import { computePeaks, isSilentOrNoise } from "../waveform.js";
 import { getEffectiveRawMic } from "../audio-devices.js";
 import { STATE } from "../youtube.js";
 
@@ -146,15 +146,24 @@ export function createRecordingSession({
     const { blob, mimeType } = result;
     let duration = elapsedSec();
     let peaks = [];
+    let silent = false;
 
     try {
       const audioContext = new (window.AudioContext || window.webkitAudioContext)();
       const buffer = await audioContext.decodeAudioData((await blob.arrayBuffer()).slice(0));
       duration = buffer.duration;
       peaks = computePeaks(buffer);
+      silent = isSilentOrNoise(buffer);
       audioContext.close();
     } catch (error) {
       reportError("finalizeTake.decode", error, null, notify);
+    }
+
+    // Don't bother the user with a keep/discard prompt for an empty take.
+    if (silent) {
+      finalizing = false;
+      notify("Nothing to keep — that take was silent.");
+      return;
     }
 
     const keep = await confirmKeepTake();

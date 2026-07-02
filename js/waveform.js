@@ -24,6 +24,48 @@ export function computePeaks(audioBuffer, buckets = 80) {
   return peaks.map((p) => +(p / globalMax).toFixed(3));
 }
 
+// Decide whether a recorded take is essentially silence or steady background
+// noise (no actual singing), so we can auto-discard it without prompting.
+// Conservative on purpose: when in doubt, treat it as a real take and keep it.
+export function isSilentOrNoise(audioBuffer) {
+  const channel = audioBuffer.getChannelData(0);
+  const size = channel.length;
+  if (size === 0) return true;
+
+  const sampleRate = audioBuffer.sampleRate || 48000;
+  const frame = Math.max(1, Math.floor(sampleRate * 0.05)); // ~50 ms windows
+
+  let truePeak = 0;
+  const frameRms = [];
+  for (let start = 0; start < size; start += frame) {
+    const end = Math.min(start + frame, size);
+    let sumSquares = 0;
+    for (let j = start; j < end; j++) {
+      const v = channel[j];
+      const a = v < 0 ? -v : v;
+      if (a > truePeak) truePeak = a;
+      sumSquares += v * v;
+    }
+    frameRms.push(Math.sqrt(sumSquares / (end - start)));
+  }
+
+  // Dead silence / essentially nothing captured (~ -40 dBFS peak).
+  if (truePeak < 0.01) return true;
+
+  frameRms.sort((a, b) => a - b);
+  const percentile = (p) =>
+    frameRms[Math.min(frameRms.length - 1, Math.floor(p * frameRms.length))];
+  const noiseFloor = percentile(0.1);
+  const activeLevel = percentile(0.9);
+
+  // Faint sound with little dynamic range above its own floor is room/mic
+  // noise rather than voice: real singing rises well above the noise floor.
+  const dynamicRange = activeLevel / Math.max(noiseFloor, 1e-4);
+  if (activeLevel < 0.02 && dynamicRange < 2.5) return true;
+
+  return false;
+}
+
 export function drawWaveform(canvas, peaks, color) {
   const ctx = canvas.getContext("2d");
   const dpr = window.devicePixelRatio || 1;
