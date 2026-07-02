@@ -4,7 +4,7 @@
 // loads offline so an installed PWA opens instantly.
 // ============================================================
 
-const CACHE = "jamin-shell-v24";
+const CACHE = "jamin-shell-v25";
 const SHELL = [
   "./",
   "./index.html",
@@ -40,6 +40,8 @@ const SHELL = [
   "./js/core/timeline-sync.js",
   "./manifest.webmanifest",
   "./icons/jamin_icon.png",
+  "./icons/jamin_any.png",
+  "./icons/jamin_maskable.png",
   "./icons/jam-in logo2 alpha.png",
 ];
 

@@ -22,10 +22,16 @@
   ],
   "icons": [
     {
-      "src": "icons/jamin_icon.png",
+      "src": "icons/jamin_any.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "icons/jamin_maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }
