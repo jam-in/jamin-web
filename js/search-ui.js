@@ -166,7 +166,7 @@ export function initSearch({ elements, videoStore, settings, notify }) {
       item.append(thumbWrap, info);
       item.addEventListener("click", () => {
         hideSearchResults(elements);
-        videoStore.load(result.videoId);
+        videoStore.load(result.videoId, { createSession: true });
       });
 
       elements.searchResults.append(item);

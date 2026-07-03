@@ -20,6 +20,7 @@ import { createEventBus } from "./core/events.js";
 import { createTrackStore } from "./core/track-store.js";
 import { createSettingsStore } from "./core/settings-store.js";
 import { createVideoStore } from "./core/video-store.js";
+import { createSessionStore } from "./core/session-store.js";
 import { createRecordingSession } from "./core/recording-session.js";
 import { initTimelineSync } from "./core/timeline-sync.js";
 import { parseDeeplink } from "./deeplink.js";
@@ -37,7 +38,15 @@ const notify = (message, kind) => showToast(elements, message, kind);
 const bus = createEventBus();
 const trackStore = createTrackStore({ engine, bus });
 const settings = createSettingsStore({ engine, recorder, bus });
-const videoStore = createVideoStore({ player, trackStore, elements, bus, notify });
+const sessionStore = createSessionStore({ bus });
+const videoStore = createVideoStore({
+  player,
+  trackStore,
+  sessionStore,
+  elements,
+  bus,
+  notify,
+});
 const recordingSession = createRecordingSession({
   player,
   recorder,
@@ -70,7 +79,7 @@ initAudioDevices({ elements, settings });
 initSearch({ elements, videoStore, settings, notify });
 initRecording({ player, recordingSession });
 const deeplink = parseDeeplink();
-const appReady = videoStore.loadInitial(deeplink.videoId);
+const appReady = videoStore.loadInitial(deeplink.videoId, deeplink.sessionId);
 if (deeplink.play) {
   appReady.then((loaded) => {
     if (loaded) player.play();

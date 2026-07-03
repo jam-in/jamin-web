@@ -1,13 +1,45 @@
-// Video session: load orchestration, metadata capture, current video id.
+// Video session: load orchestration, metadata capture, current video + jam session.
 
 import * as db from "../db.js";
 import { BLOCKED_VIDEO_IDS, DEFAULT_VIDEO_ID, STORAGE_KEYS } from "../constants.js";
+import { resolveSessionId } from "./session-id.js";
 import { reportError, reportWarning } from "../errors.js";
 import { describeYouTubeError, setPlayerOverlay } from "../video.js";
 
 const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
-export function createVideoStore({ player, trackStore, elements, bus, notify }) {
+function readLastSession() {
+  const raw = localStorage.getItem(STORAGE_KEYS.lastSession);
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed?.videoId) {
+        return {
+          videoId: parsed.videoId,
+          sessionId: resolveSessionId(parsed.sessionId),
+        };
+      }
+    } catch {
+      localStorage.removeItem(STORAGE_KEYS.lastSession);
+    }
+  }
+
+  const legacyVideo = localStorage.getItem(STORAGE_KEYS.lastVideo);
+  if (legacyVideo) {
+    return { videoId: legacyVideo, sessionId: resolveSessionId(null) };
+  }
+  return null;
+}
+
+function persistLastSession(videoId, sessionId) {
+  localStorage.setItem(
+    STORAGE_KEYS.lastSession,
+    JSON.stringify({ videoId, sessionId })
+  );
+  localStorage.removeItem(STORAGE_KEYS.lastVideo);
+}
+
+export function createVideoStore({ player, trackStore, sessionStore, elements, bus, notify }) {
   let currentVideoId = null;
 
   async function captureMeta(videoId) {
@@ -55,6 +87,14 @@ export function createVideoStore({ player, trackStore, elements, bus, notify }) 
       return currentVideoId;
     },
 
+    getSessionId() {
+      return sessionStore.getSessionId();
+    },
+
+    getSession() {
+      return sessionStore.getSession();
+    },
+
     async getVideoTitle() {
       const videoId = currentVideoId;
       if (!videoId) return "";
@@ -66,18 +106,25 @@ export function createVideoStore({ player, trackStore, elements, bus, notify }) 
       return meta?.title || "";
     },
 
-    async load(videoId, { persist = true } = {}) {
+    async load(videoId, { sessionId = null, createSession = false, persist = true } = {}) {
       bus.emit("video:loading", { videoId });
       setPlayerOverlay(elements, "Loading player…");
 
       try {
+        let session;
+        if (createSession) {
+          session = await sessionStore.create(videoId);
+        } else {
+          session = await sessionStore.ensure(sessionId, videoId);
+        }
+
         await player.load(videoId);
         setPlayerOverlay(elements, null);
         currentVideoId = videoId;
-        if (persist) localStorage.setItem(STORAGE_KEYS.lastVideo, videoId);
+        if (persist) persistLastSession(videoId, session.sessionId);
 
-        await trackStore.loadForVideo(videoId);
-        bus.emit("video:loaded", { videoId });
+        await trackStore.loadForSession(videoId, session.sessionId);
+        bus.emit("video:loaded", { videoId, sessionId: session.sessionId });
         captureMeta(videoId);
         return true;
       } catch (error) {
@@ -85,36 +132,50 @@ export function createVideoStore({ player, trackStore, elements, bus, notify }) 
         const message = describeYouTubeError(code);
         reportError("loadVideo", error, message, notify);
         setPlayerOverlay(elements, message);
-        if (persist && localStorage.getItem(STORAGE_KEYS.lastVideo) === videoId) {
-          localStorage.removeItem(STORAGE_KEYS.lastVideo);
+        const saved = readLastSession();
+        if (persist && saved?.videoId === videoId) {
+          localStorage.removeItem(STORAGE_KEYS.lastSession);
         }
         bus.emit("video:error", { videoId, message });
         return false;
       }
     },
 
-    async loadInitial(deeplinkVideoId = null) {
-      const saved = localStorage.getItem(STORAGE_KEYS.lastVideo);
-      if (saved && BLOCKED_VIDEO_IDS.has(saved)) {
-        localStorage.removeItem(STORAGE_KEYS.lastVideo);
+    async loadInitial(deeplinkVideoId = null, deeplinkSessionId = null) {
+      const saved = readLastSession();
+      if (saved?.videoId && BLOCKED_VIDEO_IDS.has(saved.videoId)) {
+        localStorage.removeItem(STORAGE_KEYS.lastSession);
       }
 
-      const deeplink =
+      const deeplinkVideo =
         deeplinkVideoId && !BLOCKED_VIDEO_IDS.has(deeplinkVideoId)
           ? deeplinkVideoId
           : null;
 
-      const candidates = deeplink
-        ? [deeplink]
-        : [
-            saved && !BLOCKED_VIDEO_IDS.has(saved) ? saved : null,
-            DEFAULT_VIDEO_ID,
-          ].filter(Boolean);
+      if (deeplinkVideo) {
+        const loaded = await this.load(deeplinkVideo, {
+          sessionId: deeplinkSessionId,
+        });
+        return loaded;
+      }
 
-      for (const videoId of candidates) {
-        const loaded = await this.load(videoId);
+      const lastSession = readLastSession();
+      const candidates = [
+        lastSession?.videoId && !BLOCKED_VIDEO_IDS.has(lastSession.videoId)
+          ? { videoId: lastSession.videoId, sessionId: lastSession.sessionId }
+          : null,
+        { videoId: DEFAULT_VIDEO_ID, sessionId: resolveSessionId(null) },
+      ].filter(Boolean);
+
+      for (const candidate of candidates) {
+        const loaded = await this.load(candidate.videoId, {
+          sessionId: candidate.sessionId,
+        });
         if (loaded) {
-          if (videoId === DEFAULT_VIDEO_ID && saved !== DEFAULT_VIDEO_ID) {
+          if (
+            candidate.videoId === DEFAULT_VIDEO_ID
+            && lastSession?.videoId !== DEFAULT_VIDEO_ID
+          ) {
             notify("Demo video loaded. Search or paste a karaoke URL — many channels block embedding.");
           }
           return true;

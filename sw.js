@@ -38,6 +38,8 @@ const SHELL = [
   "./js/core/sync-math.js",
   "./js/core/track-store.js",
   "./js/core/settings-store.js",
+  "./js/core/session-id.js",
+  "./js/core/session-store.js",
   "./js/core/video-store.js",
   "./js/core/recording-session.js",
   "./js/core/timeline-sync.js",

@@ -1,10 +1,18 @@
-// Play history dropdown — videos that have recorded takes.
+// Play history dropdown — jam sessions that have recorded takes.
 
 import * as db from "./db.js";
 import { reportError } from "./errors.js";
 import { escapeHtml, makeIconButton } from "./ui.js";
 
 let historyDeps = null;
+
+function formatSessionDate(epochMs) {
+  if (!epochMs) return "";
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(epochMs);
+}
 
 export function initHistory(deps) {
   historyDeps = deps;
@@ -32,10 +40,11 @@ export async function renderHistory() {
   if (!historyDeps) return;
   const { elements, videoStore, trackStore, notify } = historyDeps;
   const currentVideoId = videoStore.getVideoId();
+  const currentSessionId = videoStore.getSessionId();
   let entries = [];
 
   try {
-    entries = await db.getVideosWithRecordings();
+    entries = await db.getSessionsWithRecordings();
   } catch (error) {
     reportError("renderHistory", error, null, notify);
   }
@@ -44,12 +53,14 @@ export async function renderHistory() {
   elements.historyEmpty.hidden = entries.length > 0;
 
   for (const entry of entries) {
+    const isCurrent =
+      entry.videoId === currentVideoId && entry.sessionId === currentSessionId;
     const listItem = document.createElement("li");
-    listItem.className = "history-item" + (entry.videoId === currentVideoId ? " current" : "");
+    listItem.className = "history-item" + (isCurrent ? " current" : "");
 
     const loadButton = document.createElement("button");
     loadButton.className = "history-load";
-    loadButton.title = "Load this video";
+    loadButton.title = "Load this jam session";
 
     const title = document.createElement("span");
     title.className = "history-title";
@@ -59,13 +70,16 @@ export async function renderHistory() {
     meta.className = "history-meta";
     const takeLabel = `${entry.count} take${entry.count === 1 ? "" : "s"}`;
     const authorPrefix = entry.author ? `${entry.author} · ` : "";
+    const sessionLabel = formatSessionDate(entry.createdAt);
     meta.innerHTML =
-      `${escapeHtml(authorPrefix)}<span class="history-id">${escapeHtml(entry.videoId)}</span> · ${takeLabel}`;
+      `${escapeHtml(authorPrefix)}<span class="history-id">${escapeHtml(entry.videoId)}</span>`
+      + (sessionLabel ? ` · ${escapeHtml(sessionLabel)}` : "")
+      + ` · ${takeLabel}`;
 
     loadButton.append(title, meta);
     loadButton.addEventListener("click", () => {
       hideHistory();
-      videoStore.load(entry.videoId);
+      videoStore.load(entry.videoId, { sessionId: entry.sessionId });
     });
 
     const link = document.createElement("a");
@@ -76,21 +90,22 @@ export async function renderHistory() {
     link.title = "Open on YouTube";
     link.textContent = "↗";
 
-    const deleteButton = makeIconButton("🗑", "Remove from history (deletes its takes)", async () => {
+    const deleteButton = makeIconButton("🗑", "Remove this jam session (deletes its takes)", async () => {
       const label = entry.title || entry.videoId;
       if (!confirm(
-        `Remove "${label}" from history?\nThis permanently deletes its ${entry.count} recorded take${entry.count === 1 ? "" : "s"}.`
+        `Remove this jam session for "${label}"?\n`
+        + `This permanently deletes its ${entry.count} recorded take${entry.count === 1 ? "" : "s"}.`
       )) return;
 
       try {
-        await db.deleteVideo(entry.videoId);
-        if (entry.videoId === currentVideoId) {
-          await trackStore.clearForVideoDelete();
+        await db.deleteSession(entry.videoId, entry.sessionId);
+        if (isCurrent) {
+          await trackStore.clearForSessionDelete();
         }
         await renderHistory();
-        notify("Removed from history.");
+        notify("Jam session removed.");
       } catch (error) {
-        reportError("deleteVideo", error, "Could not remove from history.", notify);
+        reportError("deleteSession", error, "Could not remove jam session.", notify);
       }
     });
     deleteButton.classList.add("danger", "history-del");

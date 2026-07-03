@@ -228,8 +228,10 @@ export function createRecordingSession({
     bus.emit("recording:take-ended", { kept: true });
 
     const videoId = videoStore.getVideoId();
+    const sessionId = videoStore.getSessionId();
     const trackData = {
       videoId,
+      sessionId,
       name: `Take ${trackStore.getTracks().length + 1}`,
       startTime: recStartVideoTime,
       offset: 0,

@@ -1,7 +1,7 @@
 // App-wide constants and persisted storage keys.
 
 // Offline shell cache — bump when sw.js SHELL list or assets change.
-export const JAMIN_VERSION = "v31";
+export const JAMIN_VERSION = "v32";
 
 export const SEARCH_KEYWORD = "karaoke";
 
@@ -17,6 +17,7 @@ export const BLOCKED_VIDEO_IDS = new Set([
 
 export const STORAGE_KEYS = {
   lastVideo: "jamin:lastVideo",
+  lastSession: "jamin:lastSession",
   latencyOffset: "jamin:latencyOffset",
   rawMicOverride: "jamin:rawMicOverride",
   nudge: "jamin:nudge",

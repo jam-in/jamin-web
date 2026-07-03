@@ -1,6 +1,7 @@
 // Export / import tracks as .jmn files (zip of audio blobs + JSON metadata).
 
 import * as db from "./db.js";
+import { resolveSessionId, sessionStorageKey } from "./core/session-id.js";
 import { reportError } from "./errors.js";
 import { buildZip, crc32, readZip } from "./zip.js";
 
@@ -43,9 +44,9 @@ function formatImportMessage(added, updated, unchanged) {
   return `${parts[0]}.`;
 }
 
-async function buildExistingByHash(videoId) {
+async function buildExistingByHash(videoId, sessionId) {
   const existingByHash = new Map();
-  for (const track of await db.getTracksByVideo(videoId)) {
+  for (const track of await db.getTracksBySession(videoId, sessionId)) {
     const buf = await track.blob.arrayBuffer();
     const hash = crc32(new Uint8Array(buf));
     if (!existingByHash.has(hash)) existingByHash.set(hash, track);
@@ -108,12 +109,15 @@ function initFileHandling(trackStore, videoStore, settings, notify, appReady) {
 async function buildTracksFile(trackStore, videoStore, settings) {
   const tracks = trackStore.getTracks();
   const currentVideoId = videoStore.getVideoId();
-  if (!tracks.length) return null;
+  const session = videoStore.getSession();
+  if (!tracks.length || !currentVideoId || !session) return null;
 
   const metadata = {
     videoId: currentVideoId,
+    sessionId: session.sessionId,
+    sessionCreatedAt: session.createdAt,
     exportedAt: Date.now(),
-    version: 1,
+    version: 2,
     globalSyncOffset: settings.getLatencyOffset(),
     tracks: [],
   };
@@ -147,7 +151,12 @@ async function buildTracksFile(trackStore, videoStore, settings) {
   });
 
   const zipBlob = buildZip(entries);
-  return new File([zipBlob], `jamin-${currentVideoId}.jmn`, { type: "application/zip" });
+  const sessionTag = session.sessionId.slice(0, 8);
+  return new File(
+    [zipBlob],
+    `jamin-${currentVideoId}-${sessionTag}.jmn`,
+    { type: "application/zip" }
+  );
 }
 
 function downloadBlob(blob, filename) {
@@ -214,13 +223,25 @@ async function importFromFile(file, trackStore, videoStore, settings, notify, { 
 
     const metadata = JSON.parse(new TextDecoder().decode(metadataBytes));
     const currentVideoId = videoStore.getVideoId();
+    const currentSessionId = videoStore.getSessionId();
     const targetVideoId = metadata.videoId || currentVideoId;
+    const targetSessionId = resolveSessionId(metadata.sessionId);
 
     if (Number.isFinite(metadata.globalSyncOffset)) {
       settings.setLatencyOffset(metadata.globalSyncOffset);
     }
 
-    const existingByHash = await buildExistingByHash(targetVideoId);
+    const existingSession = await db.getSession(targetVideoId, targetSessionId);
+    if (!existingSession) {
+      await db.putSession({
+        id: sessionStorageKey(targetVideoId, targetSessionId),
+        sessionId: targetSessionId,
+        videoId: targetVideoId,
+        createdAt: metadata.sessionCreatedAt || Date.now(),
+      });
+    }
+
+    const existingByHash = await buildExistingByHash(targetVideoId, targetSessionId);
     let added = 0;
     let updated = 0;
     let unchanged = 0;
@@ -252,6 +273,7 @@ async function importFromFile(file, trackStore, videoStore, settings, notify, { 
       const blob = new Blob([bytes], { type: entry.mimeType || "audio/webm" });
       const id = await db.addTrack({
         videoId: targetVideoId,
+        sessionId: targetSessionId,
         name: importName(entry),
         startTime: entry.startTime || 0,
         offset: importOffset(entry),
@@ -263,17 +285,22 @@ async function importFromFile(file, trackStore, videoStore, settings, notify, { 
         createdAt: entry.createdAt || Date.now(),
         blob,
       });
-      existingByHash.set(hash, { id, videoId: targetVideoId, blob });
+      existingByHash.set(hash, { id, videoId: targetVideoId, sessionId: targetSessionId, blob });
       added += 1;
     }
 
     let message = formatImportMessage(added, updated, unchanged);
     if (fromExternalOpen) message = `Opened from file — ${message}`;
     notify(message, added > 0 || updated > 0 ? "success" : undefined);
-    if (targetVideoId === currentVideoId) {
-      await videoStore.load(currentVideoId);
-    } else if (confirm("Imported takes belong to a different video. Load it now?")) {
-      await videoStore.load(targetVideoId);
+
+    const sameTarget =
+      targetVideoId === currentVideoId && targetSessionId === currentSessionId;
+    if (sameTarget) {
+      await videoStore.load(currentVideoId, { sessionId: targetSessionId });
+    } else if (
+      confirm("Imported takes belong to a different jam session. Load it now?")
+    ) {
+      await videoStore.load(targetVideoId, { sessionId: targetSessionId });
     } else {
       videoStore.captureMeta(targetVideoId);
     }
