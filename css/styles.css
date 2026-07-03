@@ -699,6 +699,31 @@ html[data-nudge="on"] .timeline-sync {
   padding-left: 18px;
 }
 .about-list li { margin: 0 0 6px; }
+.about-dialog {
+  text-align: center;
+}
+.about-logo {
+  display: block;
+  width: min(100%, 240px);
+  height: auto;
+  margin: 0 auto 16px;
+}
+.about-meta {
+  color: var(--fg-dim);
+  font-size: 13px;
+  margin: 0 0 8px;
+}
+.about-credit a {
+  color: var(--accent);
+  text-decoration: none;
+}
+.about-credit a:hover { text-decoration: underline; }
+.about-dialog > p:not(.about-meta):not(.about-foot) {
+  text-align: left;
+}
+.about-dialog > .about-list {
+  text-align: left;
+}
 .about-foot {
   color: var(--fg-dim);
   font-size: 13px;

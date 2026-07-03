@@ -1,11 +1,15 @@
 // Logo dropdown menu: export/import/share, Advanced toggle, mic mode, About.
 
-import { STORAGE_KEYS } from "./constants.js";
+import { JAMIN_VERSION, STORAGE_KEYS } from "./constants.js";
 import { setRawMicOverride } from "./audio-devices.js";
 
 export function initMenu({ elements, bus, trackList, settings }) {
   const savedNudge = localStorage.getItem(STORAGE_KEYS.nudge) === "on";
   applyNudge(elements, savedNudge);
+
+  if (elements.aboutVersion) {
+    elements.aboutVersion.textContent = `Version ` + JAMIN_VERSION;
+  }
 
   elements.logoBtn?.addEventListener("click", (event) => {
     event.stopPropagation();

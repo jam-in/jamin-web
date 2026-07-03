@@ -1,5 +1,8 @@
 // App-wide constants and persisted storage keys.
 
+// Offline shell cache — bump when sw.js SHELL list or assets change.
+export const JAMIN_VERSION = "v29";
+
 export const SEARCH_KEYWORD = "karaoke";
 
 // YouTube IFrame API demo — reliably embeds on localhost.

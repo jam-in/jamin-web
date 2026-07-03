@@ -15,6 +15,7 @@ export function bindElements() {
       "aboutBtn",
       "aboutModal",
       "aboutClose",
+      "aboutVersion",
       "recIndicator",
       "recTimer",
       "offsetEarlier",

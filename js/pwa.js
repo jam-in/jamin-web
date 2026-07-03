@@ -22,7 +22,7 @@ export function initPwa({ elements }) {
 
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("sw.js").catch((error) => {
+      navigator.serviceWorker.register("sw.js", { type: "module" }).catch((error) => {
         reportWarning("serviceWorker.register", error);
       });
     });
