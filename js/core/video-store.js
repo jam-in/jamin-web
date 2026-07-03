@@ -55,6 +55,17 @@ export function createVideoStore({ player, trackStore, elements, bus, notify }) 
       return currentVideoId;
     },
 
+    async getVideoTitle() {
+      const videoId = currentVideoId;
+      if (!videoId) return "";
+
+      const data = player.getVideoData?.();
+      if (data?.video_id === videoId && data.title) return data.title;
+
+      const meta = await db.getVideoMeta(videoId);
+      return meta?.title || "";
+    },
+
     async load(videoId, { persist = true } = {}) {
       bus.emit("video:loading", { videoId });
       setPlayerOverlay(elements, "Loading player…");
@@ -82,16 +93,23 @@ export function createVideoStore({ player, trackStore, elements, bus, notify }) 
       }
     },
 
-    async loadInitial() {
+    async loadInitial(deeplinkVideoId = null) {
       const saved = localStorage.getItem(STORAGE_KEYS.lastVideo);
       if (saved && BLOCKED_VIDEO_IDS.has(saved)) {
         localStorage.removeItem(STORAGE_KEYS.lastVideo);
       }
 
-      const candidates = [
-        saved && !BLOCKED_VIDEO_IDS.has(saved) ? saved : null,
-        DEFAULT_VIDEO_ID,
-      ].filter(Boolean);
+      const deeplink =
+        deeplinkVideoId && !BLOCKED_VIDEO_IDS.has(deeplinkVideoId)
+          ? deeplinkVideoId
+          : null;
+
+      const candidates = deeplink
+        ? [deeplink]
+        : [
+            saved && !BLOCKED_VIDEO_IDS.has(saved) ? saved : null,
+            DEFAULT_VIDEO_ID,
+          ].filter(Boolean);
 
       for (const videoId of candidates) {
         const loaded = await this.load(videoId);
@@ -99,9 +117,10 @@ export function createVideoStore({ player, trackStore, elements, bus, notify }) 
           if (videoId === DEFAULT_VIDEO_ID && saved !== DEFAULT_VIDEO_ID) {
             notify("Demo video loaded. Search or paste a karaoke URL — many channels block embedding.");
           }
-          return;
+          return true;
         }
       }
+      return false;
     },
 
     captureMeta,

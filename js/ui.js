@@ -31,6 +31,7 @@ export function bindElements() {
       "historyList",
       "historyEmpty",
       "exportBtn",
+      "shareLinkBtn",
       "importBtn",
       "shareBtn",
       "importFile",

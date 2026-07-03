@@ -22,6 +22,7 @@ import { createSettingsStore } from "./core/settings-store.js";
 import { createVideoStore } from "./core/video-store.js";
 import { createRecordingSession } from "./core/recording-session.js";
 import { initTimelineSync } from "./core/timeline-sync.js";
+import { parseDeeplink } from "./deeplink.js";
 
 // Touch-primary devices get Share instead of Export/Import.
 const coarsePointer = window.matchMedia?.("(pointer: coarse)")?.matches;
@@ -64,11 +65,17 @@ initTimelineSync({ player, videoStore, bus });
 initPlayhead({ player, elements, bus });
 initTheme();
 initLatencyOffset({ elements, settings, bus });
-initMenu({ elements, bus, trackList, settings });
+initMenu({ elements, bus, trackList, settings, videoStore, notify });
 initAudioDevices({ elements, settings });
 initSearch({ elements, videoStore, settings, notify });
 initRecording({ player, recordingSession });
-const appReady = videoStore.loadInitial();
+const deeplink = parseDeeplink();
+const appReady = videoStore.loadInitial(deeplink.videoId);
+if (deeplink.play) {
+  appReady.then((loaded) => {
+    if (loaded) player.play();
+  });
+}
 initExportImport({ elements, trackStore, videoStore, settings, notify, appReady });
 initPwa({ elements });
 

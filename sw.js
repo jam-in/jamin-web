@@ -13,6 +13,7 @@ const SHELL = [
   "./css/styles.css",
   "./js/main.js",
   "./js/constants.js",
+  "./js/deeplink.js",
   "./js/errors.js",
   "./js/ui.js",
   "./js/video.js",
