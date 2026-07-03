@@ -14,10 +14,19 @@
   "file_handlers": [
     {
       "action": "./index.html",
+      "launch_type": "single-client",
       "accept": {
-        "application/zip": [".jmn"],
+        "application/zip": [".jmn", ".zip"],
+        "application/x-zip-compressed": [".jmn", ".zip"],
         "application/octet-stream": [".jmn"]
-      }
+      },
+      "icons": [
+        {
+          "src": "icons/jamin_any.png",
+          "sizes": "512x512",
+          "type": "image/png"
+        }
+      ]
     }
   ],
   "icons": [

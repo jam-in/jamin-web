@@ -68,13 +68,12 @@ initMenu({ elements, bus, trackList, settings });
 initAudioDevices({ elements, settings });
 initSearch({ elements, videoStore, settings, notify });
 initRecording({ player, recordingSession });
-initExportImport({ elements, trackStore, videoStore, settings, notify });
+const appReady = videoStore.loadInitial();
+initExportImport({ elements, trackStore, videoStore, settings, notify, appReady });
 initPwa({ elements });
 
 const recordingError = recordingSupportError();
 if (recordingError) notify(recordingError, "error");
-
-videoStore.loadInitial();
 
 window.addEventListener("resize", () => {
   trackList.redrawWaveforms();

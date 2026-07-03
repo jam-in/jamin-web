@@ -53,7 +53,26 @@ async function buildExistingByHash(videoId) {
   return existingByHash;
 }
 
-export function initExportImport({ elements, trackStore, videoStore, settings, notify }) {
+function looksLikeJmnFilename(name) {
+  const lower = (name || "").toLowerCase();
+  return lower.endsWith(".jmn") || lower.endsWith(".zip");
+}
+
+async function isJmnFile(file) {
+  if (looksLikeJmnFilename(file.name)) return true;
+  try {
+    const files = await readZip(file);
+    return !!files["metadata.json"];
+  } catch {
+    return false;
+  }
+}
+
+function supportsLaunchQueue() {
+  return "launchQueue" in window && "files" in LaunchParams.prototype;
+}
+
+export function initExportImport({ elements, trackStore, videoStore, settings, notify, appReady }) {
   elements.exportBtn?.addEventListener("click", () => downloadTracks(trackStore, videoStore, settings, notify));
   elements.importBtn?.addEventListener("click", () => elements.importFile?.click());
   elements.shareBtn?.addEventListener("click", () => shareTracks(trackStore, videoStore, settings, notify));
@@ -63,17 +82,23 @@ export function initExportImport({ elements, trackStore, videoStore, settings, n
     if (file) importFromFile(file, trackStore, videoStore, settings, notify);
   });
 
-  initFileHandling(trackStore, videoStore, settings, notify);
+  initFileHandling(trackStore, videoStore, settings, notify, appReady);
 }
 
-function initFileHandling(trackStore, videoStore, settings, notify) {
-  if (!("launchQueue" in window)) return;
+function initFileHandling(trackStore, videoStore, settings, notify, appReady) {
+  if (!supportsLaunchQueue()) return;
   window.launchQueue.setConsumer(async (launchParams) => {
-    const handle = launchParams.files?.[0];
-    if (!handle) return;
+    if (!launchParams.files?.length) return;
     try {
-      const file = await handle.getFile();
-      await importFromFile(file, trackStore, videoStore, settings, notify);
+      await (appReady ?? Promise.resolve());
+      for (const handle of launchParams.files) {
+        const file = await handle.getFile();
+        if (!(await isJmnFile(file))) {
+          notify("Not a Jam-in! takes file (.jmn).");
+          continue;
+        }
+        await importFromFile(file, trackStore, videoStore, settings, notify, { fromExternalOpen: true });
+      }
     } catch (error) {
       reportError("launchQueue", error, "Could not open file.", notify);
     }
@@ -179,7 +204,7 @@ async function shareTracks(trackStore, videoStore, settings, notify) {
   }
 }
 
-async function importFromFile(file, trackStore, videoStore, settings, notify) {
+async function importFromFile(file, trackStore, videoStore, settings, notify, { fromExternalOpen = false } = {}) {
   if (!file) return;
 
   try {
@@ -242,7 +267,8 @@ async function importFromFile(file, trackStore, videoStore, settings, notify) {
       added += 1;
     }
 
-    const message = formatImportMessage(added, updated, unchanged);
+    let message = formatImportMessage(added, updated, unchanged);
+    if (fromExternalOpen) message = `Opened from file — ${message}`;
     notify(message, added > 0 || updated > 0 ? "success" : undefined);
     if (targetVideoId === currentVideoId) {
       await videoStore.load(currentVideoId);
