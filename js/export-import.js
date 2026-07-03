@@ -2,7 +2,56 @@
 
 import * as db from "./db.js";
 import { reportError } from "./errors.js";
-import { buildZip, readZip } from "./zip.js";
+import { buildZip, crc32, readZip } from "./zip.js";
+
+function importName(entry) {
+  return entry.name || "Imported take";
+}
+
+function importOffset(entry) {
+  return Math.round((entry.offset ?? 0) * 1000) / 1000;
+}
+
+function importVolume(entry) {
+  return entry.volume ?? 1;
+}
+
+function trackMetadataMatches(existing, entry) {
+  const offset = Math.round((existing.offset ?? 0) * 1000) / 1000;
+  return existing.name === importName(entry)
+    && offset === importOffset(entry)
+    && (existing.volume ?? 1) === importVolume(entry);
+}
+
+function formatImportMessage(added, updated, unchanged) {
+  if (added === 0 && updated === 0 && unchanged > 0) {
+    return "Nothing to import — all takes already match.";
+  }
+  const parts = [];
+  if (added > 0) parts.push(`Imported ${added} take${added === 1 ? "" : "s"}`);
+  if (updated > 0) parts.push(`updated ${updated}`);
+  if (unchanged > 0) parts.push(`${unchanged} unchanged`);
+  if (added > 0 && (updated > 0 || unchanged > 0)) {
+    return `${parts[0]} (${parts.slice(1).join(", ")}).`;
+  }
+  if (updated > 0 && unchanged > 0) {
+    return `Updated ${updated} take${updated === 1 ? "" : "s"} (${unchanged} unchanged).`;
+  }
+  if (updated > 0) {
+    return `Updated ${updated} take${updated === 1 ? "" : "s"}.`;
+  }
+  return `${parts[0]}.`;
+}
+
+async function buildExistingByHash(videoId) {
+  const existingByHash = new Map();
+  for (const track of await db.getTracksByVideo(videoId)) {
+    const buf = await track.blob.arrayBuffer();
+    const hash = crc32(new Uint8Array(buf));
+    if (!existingByHash.has(hash)) existingByHash.set(hash, track);
+  }
+  return existingByHash;
+}
 
 export function initExportImport({ elements, trackStore, videoStore, settings, notify }) {
   elements.exportBtn?.addEventListener("click", () => downloadTracks(trackStore, videoStore, settings, notify));
@@ -50,7 +99,8 @@ async function buildTracksFile(trackStore, videoStore, settings) {
     const extension = (track.mimeType || "").includes("ogg") ? "ogg"
       : (track.mimeType || "").includes("mp4") ? "m4a" : "webm";
     const filename = `audio/${index}.${extension}`;
-    entries.push({ name: filename, data: new Uint8Array(await track.blob.arrayBuffer()) });
+    const audioBytes = new Uint8Array(await track.blob.arrayBuffer());
+    entries.push({ name: filename, data: audioBytes });
     metadata.tracks.push({
       file: filename,
       name: track.name,
@@ -62,6 +112,7 @@ async function buildTracksFile(trackStore, videoStore, settings) {
       muted: track.muted,
       peaks: track.peaks,
       createdAt: track.createdAt,
+      contentHash: crc32(audioBytes),
     });
     index += 1;
   }
@@ -144,26 +195,55 @@ async function importFromFile(file, trackStore, videoStore, settings, notify) {
       settings.setLatencyOffset(metadata.globalSyncOffset);
     }
 
+    const existingByHash = await buildExistingByHash(targetVideoId);
+    let added = 0;
+    let updated = 0;
+    let unchanged = 0;
+
     for (const entry of metadata.tracks) {
       const bytes = files[entry.file];
       if (!bytes) continue;
+
+      const hash = Number.isFinite(entry.contentHash) ? entry.contentHash : crc32(bytes);
+      const existing = existingByHash.get(hash);
+
+      if (existing) {
+        if (trackMetadataMatches(existing, entry)) {
+          unchanged += 1;
+          continue;
+        }
+        const nextTrack = {
+          ...existing,
+          name: importName(entry),
+          offset: importOffset(entry),
+          volume: importVolume(entry),
+        };
+        await db.updateTrack(nextTrack);
+        existingByHash.set(hash, nextTrack);
+        updated += 1;
+        continue;
+      }
+
       const blob = new Blob([bytes], { type: entry.mimeType || "audio/webm" });
-      await db.addTrack({
+      const id = await db.addTrack({
         videoId: targetVideoId,
-        name: entry.name || "Imported take",
+        name: importName(entry),
         startTime: entry.startTime || 0,
-        offset: entry.offset ?? 0,
+        offset: importOffset(entry),
         duration: entry.duration || 0,
         mimeType: entry.mimeType || "audio/webm",
-        volume: entry.volume ?? 1,
+        volume: importVolume(entry),
         muted: !!entry.muted,
         peaks: entry.peaks || [],
         createdAt: entry.createdAt || Date.now(),
         blob,
       });
+      existingByHash.set(hash, { id, videoId: targetVideoId, blob });
+      added += 1;
     }
 
-    notify("Imported.", "success");
+    const message = formatImportMessage(added, updated, unchanged);
+    notify(message, added > 0 || updated > 0 ? "success" : undefined);
     if (targetVideoId === currentVideoId) {
       await videoStore.load(currentVideoId);
     } else if (confirm("Imported takes belong to a different video. Load it now?")) {
