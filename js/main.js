@@ -63,12 +63,12 @@ initHistory({ elements, videoStore, trackStore, bus, notify });
 initTimelineSync({ player, videoStore, bus });
 initPlayhead({ player, elements, bus });
 initTheme();
-initLatencyOffset({ elements, settings });
+initLatencyOffset({ elements, settings, bus });
 initMenu({ elements, bus, trackList, settings });
 initAudioDevices({ elements, settings });
 initSearch({ elements, videoStore, settings, notify });
 initRecording({ player, recordingSession });
-initExportImport({ elements, trackStore, videoStore, notify });
+initExportImport({ elements, trackStore, videoStore, settings, notify });
 initPwa({ elements });
 
 const recordingError = recordingSupportError();

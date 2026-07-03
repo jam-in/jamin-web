@@ -4,8 +4,9 @@ import { DEFAULT_LATENCY_OFFSET_SEC } from "./constants.js";
 
 const NUDGE_SEC = 0.01;
 
-export function initLatencyOffset({ elements, settings }) {
+export function initLatencyOffset({ elements, settings, bus }) {
   renderOffsetReadout(elements, settings);
+  bus?.on("settings:latency-changed", () => renderOffsetReadout(elements, settings));
 
   elements.offsetEarlier?.addEventListener("click", (event) => {
     event.stopPropagation();

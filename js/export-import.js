@@ -4,39 +4,45 @@ import * as db from "./db.js";
 import { reportError } from "./errors.js";
 import { buildZip, readZip } from "./zip.js";
 
-export function initExportImport({ elements, trackStore, videoStore, notify }) {
-  elements.exportBtn?.addEventListener("click", () => downloadTracks(trackStore, videoStore, notify));
+export function initExportImport({ elements, trackStore, videoStore, settings, notify }) {
+  elements.exportBtn?.addEventListener("click", () => downloadTracks(trackStore, videoStore, settings, notify));
   elements.importBtn?.addEventListener("click", () => elements.importFile?.click());
-  elements.shareBtn?.addEventListener("click", () => shareTracks(trackStore, videoStore, notify));
+  elements.shareBtn?.addEventListener("click", () => shareTracks(trackStore, videoStore, settings, notify));
   elements.importFile?.addEventListener("change", () => {
     const file = elements.importFile.files[0];
     elements.importFile.value = "";
-    if (file) importFromFile(file, trackStore, videoStore, notify);
+    if (file) importFromFile(file, trackStore, videoStore, settings, notify);
   });
 
-  initFileHandling(trackStore, videoStore, notify);
+  initFileHandling(trackStore, videoStore, settings, notify);
 }
 
-function initFileHandling(trackStore, videoStore, notify) {
+function initFileHandling(trackStore, videoStore, settings, notify) {
   if (!("launchQueue" in window)) return;
   window.launchQueue.setConsumer(async (launchParams) => {
     const handle = launchParams.files?.[0];
     if (!handle) return;
     try {
       const file = await handle.getFile();
-      await importFromFile(file, trackStore, videoStore, notify);
+      await importFromFile(file, trackStore, videoStore, settings, notify);
     } catch (error) {
       reportError("launchQueue", error, "Could not open file.", notify);
     }
   });
 }
 
-async function buildTracksFile(trackStore, videoStore) {
+async function buildTracksFile(trackStore, videoStore, settings) {
   const tracks = trackStore.getTracks();
   const currentVideoId = videoStore.getVideoId();
   if (!tracks.length) return null;
 
-  const metadata = { videoId: currentVideoId, exportedAt: Date.now(), version: 1, tracks: [] };
+  const metadata = {
+    videoId: currentVideoId,
+    exportedAt: Date.now(),
+    version: 1,
+    globalSyncOffset: settings.getLatencyOffset(),
+    tracks: [],
+  };
   const entries = [];
   let index = 0;
 
@@ -77,14 +83,14 @@ function downloadBlob(blob, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
-async function downloadTracks(trackStore, videoStore, notify) {
+async function downloadTracks(trackStore, videoStore, settings, notify) {
   if (!trackStore.getTracks().length) {
     notify("No tracks to export for this video.");
     return;
   }
 
   try {
-    const file = await buildTracksFile(trackStore, videoStore);
+    const file = await buildTracksFile(trackStore, videoStore, settings);
     if (!file) return;
     downloadBlob(file, file.name);
     notify("Exported.", "success");
@@ -93,14 +99,14 @@ async function downloadTracks(trackStore, videoStore, notify) {
   }
 }
 
-async function shareTracks(trackStore, videoStore, notify) {
+async function shareTracks(trackStore, videoStore, settings, notify) {
   if (!trackStore.getTracks().length) {
     notify("No tracks to share for this video.");
     return;
   }
 
   try {
-    const file = await buildTracksFile(trackStore, videoStore);
+    const file = await buildTracksFile(trackStore, videoStore, settings);
     if (!file) return;
 
     const currentVideoId = videoStore.getVideoId();
@@ -122,7 +128,7 @@ async function shareTracks(trackStore, videoStore, notify) {
   }
 }
 
-async function importFromFile(file, trackStore, videoStore, notify) {
+async function importFromFile(file, trackStore, videoStore, settings, notify) {
   if (!file) return;
 
   try {
@@ -133,6 +139,10 @@ async function importFromFile(file, trackStore, videoStore, notify) {
     const metadata = JSON.parse(new TextDecoder().decode(metadataBytes));
     const currentVideoId = videoStore.getVideoId();
     const targetVideoId = metadata.videoId || currentVideoId;
+
+    if (Number.isFinite(metadata.globalSyncOffset)) {
+      settings.setLatencyOffset(metadata.globalSyncOffset);
+    }
 
     for (const entry of metadata.tracks) {
       const bytes = files[entry.file];
