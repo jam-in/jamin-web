@@ -49,10 +49,6 @@ html, body {
 
 h1, h2 { margin: 0; font-weight: 650; }
 
-/* Platform-specific controls (set in main.js via data-platform). */
-html[data-platform="mobile"] .desktop-only { display: none !important; }
-html[data-platform="desktop"] .mobile-only { display: none !important; }
-
 /* ---------- Top bar (Zone 1) ---------- */
 .topbar {
   display: flex;

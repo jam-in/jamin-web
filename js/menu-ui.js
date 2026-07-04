@@ -32,7 +32,7 @@ export function initMenu({ elements, bus, trackList, settings, videoStore, notif
     shareDeeplink(videoStore, notify);
   });
 
-  for (const btn of [elements.exportBtn, elements.importBtn, elements.shareBtn]) {
+  for (const btn of [elements.exportBtn, elements.importBtn]) {
     btn?.addEventListener("click", () => closeMenu(elements));
   }
 

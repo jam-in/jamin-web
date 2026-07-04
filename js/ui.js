@@ -33,7 +33,6 @@ export function bindElements() {
       "exportBtn",
       "shareLinkBtn",
       "importBtn",
-      "shareBtn",
       "importFile",
       "playerOverlay",
       "playerOverlayMsg",

@@ -74,9 +74,8 @@ function supportsLaunchQueue() {
 }
 
 export function initExportImport({ elements, trackStore, videoStore, settings, notify, appReady }) {
-  elements.exportBtn?.addEventListener("click", () => downloadTracks(trackStore, videoStore, settings, notify));
+  elements.exportBtn?.addEventListener("click", () => exportTracks(trackStore, videoStore, settings, notify));
   elements.importBtn?.addEventListener("click", () => elements.importFile?.click());
-  elements.shareBtn?.addEventListener("click", () => shareTracks(trackStore, videoStore, settings, notify));
   elements.importFile?.addEventListener("change", () => {
     const file = elements.importFile.files[0];
     elements.importFile.value = "";
@@ -168,28 +167,13 @@ function downloadBlob(blob, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
-async function downloadTracks(trackStore, videoStore, settings, notify) {
+async function exportTracks(trackStore, videoStore, settings, notify) {
   if (!trackStore.getTracks().length) {
     notify("No tracks to export for this video.");
     return;
   }
 
-  try {
-    const file = await buildTracksFile(trackStore, videoStore, settings);
-    if (!file) return;
-    downloadBlob(file, file.name);
-    notify("Exported.", "success");
-  } catch (error) {
-    reportError("exportTracks", error, "Export failed.", notify);
-  }
-}
-
-async function shareTracks(trackStore, videoStore, settings, notify) {
-  if (!trackStore.getTracks().length) {
-    notify("No tracks to share for this video.");
-    return;
-  }
-
+  let sharing = false;
   try {
     const file = await buildTracksFile(trackStore, videoStore, settings);
     if (!file) return;
@@ -200,16 +184,19 @@ async function shareTracks(trackStore, videoStore, settings, notify) {
       title: "Jam-in! takes",
       text: `Voice takes for ${currentVideoId}`,
     };
-    if (navigator.canShare?.(payload)) {
+    sharing = navigator.canShare?.(payload);
+    if (sharing) {
+      notify("Sharing takes...");
       await navigator.share(payload);
       notify("Shared.", "success");
     } else {
+      notify("Saving takes...");
       downloadBlob(file, file.name);
       notify("Share not available — downloaded instead.");
     }
   } catch (error) {
     if (error?.name === "AbortError") return;
-    reportError("shareTracks", error, "Share failed.", notify);
+    reportError("shareTracks", error, (sharing ? "Share" : "Export") + " failed: " + error.message, notify);
   }
 }
 
