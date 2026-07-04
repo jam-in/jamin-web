@@ -62,6 +62,24 @@ h1, h2 { margin: 0; font-weight: 650; }
 }
 .menu-wrap { position: relative; flex: none; }
 
+.topbar-share-btn {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.topbar-share-icon {
+  display: block;
+  width: 20px;
+  height: 20px;
+  background: currentColor;
+  -webkit-mask: url("../icons/share.svg") center / contain no-repeat;
+  mask: url("../icons/share.svg") center / contain no-repeat;
+}
+
 /* Long logo button on the left of the search field */
 .topbar-logo-btn {
   flex: none;

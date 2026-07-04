@@ -28,7 +28,6 @@ export function initMenu({ elements, bus, trackList, settings, videoStore, notif
   });
 
   elements.shareLinkBtn?.addEventListener("click", () => {
-    closeMenu(elements);
     shareDeeplink(videoStore, notify);
   });
 

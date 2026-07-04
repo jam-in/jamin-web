@@ -31,10 +31,6 @@
           </button>
 
           <div id="mainMenu" class="app-menu" role="menu" hidden>
-            <button id="shareLinkBtn" class="menu-item" type="button" role="menuitem">Share link…</button>
-
-            <div class="menu-divider"></div>
-
             <label class="menu-item menu-check">
               <input type="checkbox" id="advNudgeChk" />
               <span>Advanced</span>
@@ -88,6 +84,16 @@
             <p id="historyEmpty" class="history-empty">No recordings yet. Record a take and the video shows up here.</p>
           </div>
         </div>
+
+        <button
+          id="shareLinkBtn"
+          class="topbar-share-btn icon-btn"
+          type="button"
+          title="Share link to this jam session"
+          aria-label="Share link"
+        >
+          <span class="topbar-share-icon" aria-hidden="true"></span>
+        </button>
       </header>
 
       <!-- Zone 2: YouTube player -->

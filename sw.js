@@ -47,6 +47,7 @@ const SHELL = [
   "./icons/jamin_any.png",
   "./icons/jamin_maskable.png",
   "./icons/jam-in logo2 alpha.png",
+  "./icons/share.svg",
 ];
 
 self.addEventListener("install", (e) => {
