@@ -96,14 +96,23 @@ export function createVideoStore({ player, trackStore, sessionStore, elements, b
     },
 
     async getVideoTitle() {
+      const sync = this.getVideoTitleSync();
+      if (sync) return sync;
+
+      const videoId = currentVideoId;
+      if (!videoId) return "";
+
+      const meta = await db.getVideoMeta(videoId);
+      return meta?.title || "";
+    },
+
+    getVideoTitleSync() {
       const videoId = currentVideoId;
       if (!videoId) return "";
 
       const data = player.getVideoData?.();
       if (data?.video_id === videoId && data.title) return data.title;
-
-      const meta = await db.getVideoMeta(videoId);
-      return meta?.title || "";
+      return "";
     },
 
     async load(videoId, { sessionId = null, createSession = false, persist = true } = {}) {
