@@ -749,3 +749,4 @@ html[data-nudge="on"] .timeline-sync {
 .toast.error { border-color: var(--danger); color: var(--danger); }
 .toast.warn { border-color: var(--warn); color: var(--warn); }
 .toast.success { border-color: var(--accent-2); }
+.toast.actionable { cursor: pointer; }

@@ -55,8 +55,21 @@ export function showToast(elements, message, kind = "") {
   elements.toast.textContent = message;
   elements.toast.className = "toast" + (kind ? " " + kind : "");
   elements.toast.hidden = false;
+  elements.toast.onclick = null;
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => (elements.toast.hidden = true), 4200);
+}
+
+/** Persistent toast with a single tap action (e.g. reload after SW update). */
+export function showActionToast(elements, message, onAction, kind = "") {
+  clearTimeout(toastTimer);
+  elements.toast.textContent = message;
+  elements.toast.className = "toast actionable" + (kind ? " " + kind : "");
+  elements.toast.hidden = false;
+  elements.toast.onclick = () => {
+    elements.toast.onclick = null;
+    onAction();
+  };
 }
 
 export function formatTime(seconds) {
