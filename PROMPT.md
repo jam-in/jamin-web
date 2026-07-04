@@ -1,4 +1,4 @@
-# Build Spec — "Jam-in!" (sing over YouTube)
+# Build Spec — "Jam-in!" (record over YouTube)
 
 Build a single-page web app called **Jam-in!** that lets a user play any YouTube
 video, record voice takes over it through the microphone, and play those takes
@@ -46,7 +46,7 @@ at its timestamp" approach is not acceptable.
 Single screen, dark-mode-first (also support light), mobile-friendly, clean and
 minimal. A modern, polished look.
 
-**Top bar:** app brand ("🎤 Jam-in! — sing over YouTube"), and action buttons:
+**Top bar:** app brand ("🎤 Jam-in! — record over YouTube"), and action buttons:
 - **History** dropdown (🕑) — list of videos you've recorded over.
 - **Export** / **Import** (zip).
 - **Install** (shown only when the PWA install prompt is available).
@@ -230,7 +230,7 @@ Use a single lightweight in-memory `app` state object (no store/framework);
 `init*(app)` functions attach listeners and call back into render functions.
 
 ## Acceptance check
-Serve over `http://localhost`, load the default video, press Record, sing a few
+Serve over `http://localhost`, load the default video, press Record, voice over a few
 seconds, Stop, Keep — the take appears on the timeline and plays back roughly in
 sync on replay; the global-offset control audibly shifts timing; reload the page
 and the take is still there; export to zip and re-import reproduces it.

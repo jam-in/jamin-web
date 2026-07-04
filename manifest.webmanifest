@@ -1,5 +1,5 @@
 {
-  "name": "Jam-in! — sing over YouTube",
+  "name": "Jam-in! — record over YouTube",
   "short_name": "Jam-in!",
   "description": "Record voice takes over YouTube videos and play them back in sync.",
   "start_url": "./index.html",
