@@ -30,10 +30,7 @@ export function bindElements() {
       "historyPanel",
       "historyList",
       "historyEmpty",
-      "exportBtn",
       "shareLinkBtn",
-      "importBtn",
-      "importFile",
       "playerOverlay",
       "playerOverlayMsg",
       "toast",
@@ -42,11 +39,7 @@ export function bindElements() {
       "keepTakeNo",
       "deleteTakeModal",
       "deleteTakeYes",
-      "deleteTakeNo",
-      "shareExportModal",
-      "shareExportShare",
-      "shareExportDownload",
-      "shareExportCancel"
+      "deleteTakeNo"
     ].reduce((acc, key) => {
       acc[key] = document.getElementById(key);
       return acc;
@@ -161,51 +154,5 @@ export function confirmDeleteTake(elements) {
     backdrop?.addEventListener("click", onNo);
     document.addEventListener("keydown", onKey);
     elements.deleteTakeNo.focus();
-  });
-}
-
-/** "shared" | "download" | "cancelled" — Share runs on button click to keep user activation. */
-export function promptShareExport(elements, payload) {
-  if (!elements.shareExportModal) return Promise.resolve("download");
-
-  return new Promise((resolve) => {
-    elements.shareExportModal.hidden = false;
-
-    const finish = (result) => {
-      elements.shareExportModal.hidden = true;
-      elements.shareExportShare.removeEventListener("click", onShare);
-      elements.shareExportDownload.removeEventListener("click", onDownload);
-      elements.shareExportCancel.removeEventListener("click", onCancel);
-      backdrop?.removeEventListener("click", onCancel);
-      document.removeEventListener("keydown", onKey);
-      resolve(result);
-    };
-
-    const onShare = () => {
-      if (!navigator.canShare?.(payload)) {
-        finish("download");
-        return;
-      }
-      // Must invoke share synchronously inside the click handler (no await before share).
-      navigator.share(payload)
-        .then(() => finish("shared"))
-        .catch((error) => {
-          if (error?.name === "AbortError") finish("cancelled");
-          else finish("download");
-        });
-    };
-    const onDownload = () => finish("download");
-    const onCancel = () => finish("cancelled");
-    const onKey = (event) => {
-      if (event.key === "Escape") finish("cancelled");
-    };
-
-    const backdrop = elements.shareExportModal.querySelector(".modal-backdrop");
-    elements.shareExportShare.addEventListener("click", onShare);
-    elements.shareExportDownload.addEventListener("click", onDownload);
-    elements.shareExportCancel.addEventListener("click", onCancel);
-    backdrop?.addEventListener("click", onCancel);
-    document.addEventListener("keydown", onKey);
-    elements.shareExportShare.focus();
   });
 }

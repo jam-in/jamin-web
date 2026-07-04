@@ -11,7 +11,6 @@ import { initSearch } from "./search-ui.js";
 import { initRecording } from "./recording.js";
 import { createTrackListController } from "./tracks-ui.js";
 import { initHistory } from "./history-ui.js";
-import { initExportImport } from "./export-import.js";
 import { initPwa } from "./pwa.js";
 import { initPlayhead } from "./timeline-playhead.js";
 import { initMenu } from "./menu-ui.js";
@@ -24,10 +23,6 @@ import { createSessionStore } from "./core/session-store.js";
 import { createRecordingSession } from "./core/recording-session.js";
 import { initTimelineSync } from "./core/timeline-sync.js";
 import { parseDeeplink } from "./deeplink.js";
-
-// Touch-primary devices get Share instead of Export/Import.
-const coarsePointer = window.matchMedia?.("(pointer: coarse)")?.matches;
-document.documentElement.dataset.platform = coarsePointer ? "mobile" : "desktop";
 
 const elements = bindElements();
 const player = new Player("player");
@@ -85,7 +80,6 @@ if (deeplink.play) {
     if (loaded) player.play();
   });
 }
-initExportImport({ elements, trackStore, videoStore, settings, notify, appReady });
 initPwa({ elements });
 
 const recordingError = recordingSupportError();

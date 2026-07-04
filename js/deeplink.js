@@ -2,7 +2,7 @@
 
 import { parseVideoId } from "./youtube.js";
 import { resolveSessionId } from "./core/session-id.js";
-import { reportError } from "./errors.js";
+import { shareLinkNow } from "./share.js";
 
 function parsePlayFlag(value) {
   if (value == null || value === "") return false;
@@ -32,44 +32,18 @@ export function buildDeeplinkUrl(videoId, { sessionId, play = false } = {}) {
   return url.href;
 }
 
-async function copyLinkFallback(text, url, notify) {
-  const body = `${text}\n${url}`;
-  if (navigator.clipboard?.writeText) {
-    await navigator.clipboard.writeText(body);
-    notify("Link copied to clipboard.", "success");
-    return;
-  }
-  notify(url);
-}
-
-export async function shareDeeplink(videoStore, notify) {
+export function shareDeeplink(videoStore, notify) {
   const videoId = videoStore.getVideoId();
   if (!videoId) {
     notify("No video loaded.");
     return;
   }
 
-  const sessionId = videoStore.getSessionId();
-  const url = buildDeeplinkUrl(videoId, { sessionId });
+  const url = buildDeeplinkUrl(videoId, { sessionId: videoStore.getSessionId() });
   const title = videoStore.getVideoTitleSync();
 
   let text = "Join the jam over this YouTube video:\n\n";
   if (title) text += `${title}\n`;
-  const payload = { title: "Jam-in!", text, url };
 
-  try {
-    if (navigator.share && navigator.canShare?.(payload)) {
-      await navigator.share(payload);
-      notify("Link shared.", "success");
-      return;
-    }
-    await copyLinkFallback(text, url, notify);
-  } catch (error) {
-    if (error?.name === "AbortError") return;
-    try {
-      await copyLinkFallback(text, url, notify);
-    } catch (fallbackError) {
-      reportError("shareDeeplink", fallbackError, "Share failed.", notify);
-    }
-  }
+  shareLinkNow({ url, title: "Jam-in!", text }, notify);
 }

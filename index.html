@@ -32,9 +32,6 @@
 
           <div id="mainMenu" class="app-menu" role="menu" hidden>
             <button id="shareLinkBtn" class="menu-item" type="button" role="menuitem">Share link…</button>
-            <button id="exportBtn" class="menu-item" type="button" role="menuitem">Export takes…</button>
-            <button id="importBtn" class="menu-item" type="button" role="menuitem">Import takes…</button>
-            <input id="importFile" type="file" accept=".jmn,.zip,application/zip" hidden />
 
             <div class="menu-divider"></div>
 
@@ -133,19 +130,6 @@
       <div class="modal-actions">
         <button id="keepTakeNo" class="btn ghost" type="button">No, discard</button>
         <button id="keepTakeYes" class="btn primary" type="button">Yes, save</button>
-      </div>
-    </div>
-  </div>
-
-  <div id="shareExportModal" class="modal" hidden>
-    <div class="modal-backdrop" aria-hidden="true"></div>
-    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="shareExportTitle">
-      <h2 id="shareExportTitle">Share takes</h2>
-      <p id="shareExportMsg">Your .jmn file is ready. Tap Share to pick receiving app.</p>
-      <div class="modal-actions">
-        <button id="shareExportCancel" class="btn ghost" type="button">Cancel</button>
-        <button id="shareExportDownload" class="btn ghost" type="button">Save file</button>
-        <button id="shareExportShare" class="btn primary" type="button">Share…</button>
       </div>
     </div>
   </div>

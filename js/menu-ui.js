@@ -1,4 +1,4 @@
-// Logo dropdown menu: share link, export/import/share takes, Advanced toggle, mic mode, About.
+// Logo dropdown menu: share link, Advanced toggle, mic mode, About.
 
 import { JAMIN_VERSION, STORAGE_KEYS } from "./constants.js";
 import { setRawMicOverride } from "./audio-devices.js";
@@ -31,10 +31,6 @@ export function initMenu({ elements, bus, trackList, settings, videoStore, notif
     closeMenu(elements);
     shareDeeplink(videoStore, notify);
   });
-
-  for (const btn of [elements.exportBtn, elements.importBtn]) {
-    btn?.addEventListener("click", () => closeMenu(elements));
-  }
 
   elements.aboutBtn?.addEventListener("click", () => {
     closeMenu(elements);
