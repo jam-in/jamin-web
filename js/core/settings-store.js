@@ -1,39 +1,96 @@
-// Device-wide prefs: latency offset, raw mic, search sequence guard.
+// Device-wide prefs: default sync offsets (speakers / headphones), raw mic.
 
-import { DEFAULT_LATENCY_OFFSET_SEC, STORAGE_KEYS } from "../constants.js";
+import { DEFAULT_SYNC_OFFSET_SEC, STORAGE_KEYS } from "../constants.js";
+import { isUsingHeadphones } from "../audio-devices.js";
 
-const MIN_OFFSET_SEC = 0;
-const MAX_OFFSET_SEC = 1.0;
+const MIN_DEFAULT_OFFSET_SEC = 0;
+const MAX_DEFAULT_OFFSET_SEC = 1.0;
 
-function clampOffset(seconds) {
-  return Math.max(MIN_OFFSET_SEC, Math.min(MAX_OFFSET_SEC, seconds));
+function clampDefault(seconds) {
+  return Math.max(MIN_DEFAULT_OFFSET_SEC, Math.min(MAX_DEFAULT_OFFSET_SEC, seconds));
+}
+
+function readDefault(key) {
+  const saved = parseFloat(localStorage.getItem(key));
+  return Number.isFinite(saved) ? saved : DEFAULT_SYNC_OFFSET_SEC;
+}
+
+function migrateLegacyOffset() {
+  const legacy = localStorage.getItem(STORAGE_KEYS.latencyOffset);
+  if (legacy == null) return;
+  if (localStorage.getItem(STORAGE_KEYS.defaultOffsetSpeakers) == null) {
+    const parsed = parseFloat(legacy);
+    if (Number.isFinite(parsed)) {
+      localStorage.setItem(STORAGE_KEYS.defaultOffsetSpeakers, String(parsed));
+    }
+  }
+  localStorage.removeItem(STORAGE_KEYS.latencyOffset);
 }
 
 export function createSettingsStore({ engine, recorder, bus }) {
-  const saved = parseFloat(localStorage.getItem(STORAGE_KEYS.latencyOffset));
-  let latencyOffset = Number.isFinite(saved) ? saved : DEFAULT_LATENCY_OFFSET_SEC;
+  migrateLegacyOffset();
+
+  let defaultOffsetSpeakers = readDefault(STORAGE_KEYS.defaultOffsetSpeakers);
+  let defaultOffsetHeadphones = readDefault(STORAGE_KEYS.defaultOffsetHeadphones);
   let rawMicEnabled = false;
   let searchSequence = 0;
 
-  engine.setGlobalOffset(latencyOffset);
+  // Playback uses per-track offsets only; engine default is unused.
+  engine.setDefaultOffset(0);
+
+  function emitDefaultsChanged() {
+    bus.emit("settings:defaults-changed", {
+      defaultOffsetSpeakers,
+      defaultOffsetHeadphones,
+    });
+  }
 
   return {
-    getLatencyOffset() {
-      return latencyOffset;
+    getDefaultOffsetSpeakers() {
+      return defaultOffsetSpeakers;
     },
 
-    setLatencyOffset(seconds, { persist = true } = {}) {
-      latencyOffset = clampOffset(seconds);
-      engine.setGlobalOffset(latencyOffset);
+    getDefaultOffsetHeadphones() {
+      return defaultOffsetHeadphones;
+    },
+
+    /** Default for the current output route (fallback when auto-sync is uncertain). */
+    getActiveDefaultOffset() {
+      return isUsingHeadphones()
+        ? defaultOffsetHeadphones
+        : defaultOffsetSpeakers;
+    },
+
+    setDefaultOffsetSpeakers(seconds, { persist = true } = {}) {
+      defaultOffsetSpeakers = clampDefault(seconds);
       if (persist) {
-        localStorage.setItem(STORAGE_KEYS.latencyOffset, String(latencyOffset));
+        localStorage.setItem(
+          STORAGE_KEYS.defaultOffsetSpeakers,
+          String(defaultOffsetSpeakers)
+        );
       }
-      bus.emit("settings:latency-changed", { latencyOffset });
+      emitDefaultsChanged();
     },
 
-    nudgeLatencyOffset(deltaSeconds) {
-      const next = Math.round((latencyOffset + deltaSeconds) * 1000) / 1000;
-      this.setLatencyOffset(next);
+    setDefaultOffsetHeadphones(seconds, { persist = true } = {}) {
+      defaultOffsetHeadphones = clampDefault(seconds);
+      if (persist) {
+        localStorage.setItem(
+          STORAGE_KEYS.defaultOffsetHeadphones,
+          String(defaultOffsetHeadphones)
+        );
+      }
+      emitDefaultsChanged();
+    },
+
+    nudgeDefaultOffsetSpeakers(deltaSeconds) {
+      const next = Math.round((defaultOffsetSpeakers + deltaSeconds) * 1000) / 1000;
+      this.setDefaultOffsetSpeakers(next);
+    },
+
+    nudgeDefaultOffsetHeadphones(deltaSeconds) {
+      const next = Math.round((defaultOffsetHeadphones + deltaSeconds) * 1000) / 1000;
+      this.setDefaultOffsetHeadphones(next);
     },
 
     getRawMicEnabled() {

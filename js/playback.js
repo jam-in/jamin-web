@@ -41,11 +41,11 @@
 //
 // We schedule each clip as if it started EARLIER by an offset:
 //
-//     effectiveStart = startTime - globalOffset - track.offset
+//     effectiveStart = startTime - track.offset
 //
-// `globalOffset` is the calibrated default for this device; `track.offset`
-// is a per-take nudge. Increasing the offset pulls the voice earlier
-// (fixes "my voice plays late"); negative pushes it later.
+// `track.offset` is the absolute latency compensation for this take (seconds,
+// always >= 0). Device defaults (speakers / headphones) are used only when
+// auto-sync cannot measure bleed with confidence.
 // ============================================================
 
 import { reportWarning } from "./errors.js";
@@ -65,7 +65,6 @@ export class PlaybackEngine {
     this.anchorVideo = 0;
     this.running = false;
     this.timer = null;
-    this.globalOffset = 0;
     this.soloId = null;
   }
 
@@ -133,25 +132,19 @@ export class PlaybackEngine {
     t.gainNode.gain.value = t.volume;
   }
 
-  // Device-wide latency compensation (seconds). Reschedules live so the user
-  // can hear the slider take effect during playback.
-  setGlobalOffset(sec) {
-    this.globalOffset = sec || 0;
-    if (this.running) { this._stopAllSources(); this._scheduleAll(); }
-  }
+  // Legacy no-op — per-track offsets are absolute.
+  setDefaultOffset(_sec) {}
 
-  // Per-take nudge (seconds) on top of the global offset.
+  // Per-take absolute sync offset (seconds, >= 0).
   setTrackOffset(id, sec) {
     const t = this.tracks.find((x) => x.id === id);
     if (!t) return;
-    t.offset = sec || 0;
+    t.offset = Math.max(0, sec || 0);
     if (this.running) this._scheduleOne(t);
   }
 
-  // Video time at which this clip's first sample should sound, after
-  // subtracting the latency compensation (clips were recorded late).
   _effStart(t) {
-    return effectiveStartTime(t, this.globalOffset);
+    return effectiveStartTime(t);
   }
 
   removeTrack(id) {

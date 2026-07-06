@@ -16,16 +16,15 @@ export function createTrackListController({ trackStore, settings, videoStore, pl
   function getTimelineMetrics() {
     return {
       videoDuration: player.getDuration() || 0,
-      globalOffset: settings.getLatencyOffset(),
     };
   }
 
   function getTrackSegment(track, metrics) {
-    const { videoDuration, globalOffset } = metrics;
+    const { videoDuration } = metrics;
     if (videoDuration <= 0) {
       return { segmentLeft: 0, segmentWidth: 0 };
     }
-    const effStart = effectiveStartTime(track, globalOffset);
+    const effStart = effectiveStartTime(track);
     return {
       segmentLeft: effStart / videoDuration,
       segmentWidth: (track.duration || 0) / videoDuration,
@@ -186,7 +185,7 @@ export function createTrackListController({ trackStore, settings, videoStore, pl
 
   bus.on("tracks:changed", () => renderTracks());
   bus.on("video:loaded", () => renderTracks());
-  bus.on("settings:latency-changed", () => redrawWaveforms());
+  bus.on("settings:defaults-changed", () => redrawWaveforms());
   bus.on("timeline:ready", () => {
     redrawWaveforms();
     layoutAllTrackRows();

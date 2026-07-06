@@ -149,28 +149,34 @@ label.menu-item:hover { background: var(--bg-3); }
   padding: 6px 8px;
   font-size: 13px;
 }
-/* Global sync offset — revealed only when "Advanced" is on. */
+/* Default sync offsets — revealed only when "Advanced" is on. */
 .menu-advanced { display: none; padding: 6px 10px 8px; }
 html[data-nudge="on"] .menu-advanced { display: block; }
-.menu-advanced .global-sync-row {
+.menu-advanced .default-sync-row {
   flex-direction: column;
   align-items: stretch;
   gap: 6px;
+  margin-bottom: 10px;
 }
-.menu-advanced .global-sync-label { font-size: 11px; }
-.menu-advanced .autosync-btn {
-  width: 100%;
-  margin-top: 8px;
-  text-align: center;
-  font-size: 12px;
-  padding: 6px 10px;
-  border-radius: 8px;
+.menu-advanced .default-sync-row:last-child { margin-bottom: 0; }
+.menu-advanced .default-sync-label { font-size: 11px; }
+.menu-advanced .default-sync-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.menu-advanced .default-auto-btn {
+  margin-left: 4px;
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 6px;
   border: 1px solid var(--border);
   background: var(--bg-3);
   color: var(--fg);
   cursor: pointer;
+  flex: none;
 }
-.menu-advanced .autosync-btn:hover { background: var(--bg-2); }
+.menu-advanced .default-auto-btn:hover { background: var(--bg-2); }
 
 /* ---------- Play-history dropdown (anchored under the search input) ---------- */
 .history-panel {

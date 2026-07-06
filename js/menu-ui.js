@@ -1,9 +1,9 @@
-// Logo dropdown menu: share link, Advanced toggle, auto-sync, About.
+// Logo dropdown menu: share link, Advanced toggle, default sync, About.
 
 import { JAMIN_VERSION, STORAGE_KEYS } from "./constants.js";
 import { shareDeeplink } from "./deeplink.js";
 
-export function initMenu({ elements, bus, trackList, autoSync, videoStore, notify }) {
+export function initMenu({ elements, bus, trackList, videoStore, notify }) {
   const savedNudge = localStorage.getItem(STORAGE_KEYS.nudge) === "on";
   applyNudge(elements, savedNudge);
 
@@ -20,11 +20,6 @@ export function initMenu({ elements, bus, trackList, autoSync, videoStore, notif
   elements.advNudgeChk?.addEventListener("change", () => {
     applyNudge(elements, elements.advNudgeChk.checked);
     trackList.layoutAllTrackRows();
-  });
-
-  elements.autoSyncBtn?.addEventListener("click", () => {
-    closeMenu(elements);
-    autoSync?.runCalibration();
   });
 
   elements.shareLinkBtn?.addEventListener("click", () => {

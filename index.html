@@ -37,19 +37,28 @@
             </label>
             <div class="menu-advanced">
               <div
-                class="global-sync-row"
-                title="Compensates for recording latency. ◀ if your voice plays late, ▶ if early."
+                class="default-sync-row"
+                title="Default offset when auto-sync is uncertain (speakers / bleed mode)."
               >
-                <span class="global-sync-label">Global sync offset</span>
-                <div class="timeline-sync">
-                  <button id="offsetEarlier" class="icon-btn" type="button" title="10 ms earlier">◀</button>
-                  <span id="offsetReadout" class="track-sync-ms" title="Double-click to reset to default">+200 ms</span>
-                  <button id="offsetLater" class="icon-btn" type="button" title="10 ms later">▶</button>
+                <span class="default-sync-label">Default sync — Speakers</span>
+                <div class="timeline-sync default-sync-controls">
+                  <button id="speakersOffsetEarlier" class="icon-btn" type="button" title="10 ms earlier">◀</button>
+                  <span id="speakersOffsetReadout" class="track-sync-ms" title="Double-click to reset to 0">+0 ms</span>
+                  <button id="speakersOffsetLater" class="icon-btn" type="button" title="10 ms later">▶</button>
+                  <button id="speakersAutoBtn" class="default-auto-btn" type="button" title="Measure speaker bleed and set this default">Auto</button>
                 </div>
               </div>
-              <button id="autoSyncBtn" class="menu-item autosync-btn" type="button" title="Measure speaker bleed and set global sync offset">
-                Auto-sync
-              </button>
+              <div
+                class="default-sync-row"
+                title="Default offset when recording with headphones (no auto measurement yet)."
+              >
+                <span class="default-sync-label">Default sync — Headphones</span>
+                <div class="timeline-sync default-sync-controls">
+                  <button id="headphonesOffsetEarlier" class="icon-btn" type="button" title="10 ms earlier">◀</button>
+                  <span id="headphonesOffsetReadout" class="track-sync-ms" title="Double-click to reset to 0">+0 ms</span>
+                  <button id="headphonesOffsetLater" class="icon-btn" type="button" title="10 ms later">▶</button>
+                </div>
+              </div>
             </div>
 
             <div class="menu-divider"></div>

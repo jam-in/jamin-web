@@ -47,9 +47,6 @@ export function createAutoSync({
       && !referenceCapture.hasShare();
   }
 
-  /**
-   * Call getDisplayMedia while a user gesture is still active (timeline click, etc.).
-   */
   async function ensureShareFromGesture() {
     if (!referenceCapture.isAvailable() || isUsingHeadphones()) return true;
     if (referenceCapture.hasShare()) return true;
@@ -64,9 +61,6 @@ export function createAutoSync({
     }
   }
 
-  /**
-   * YouTube iframe play has no gesture by the time PLAYING fires — show a tap-to-enable toast.
-   */
   function requestTabSharePrompt() {
     return new Promise((resolve) => {
       showActionToast(
@@ -88,7 +82,7 @@ export function createAutoSync({
     });
   }
 
-  function canAutoSync() {
+  function canMeasureBleed() {
     return referenceCapture.isAvailable()
       && !isUsingHeadphones()
       && referenceCapture.hasShare();
@@ -103,18 +97,19 @@ export function createAutoSync({
     });
   }
 
-  function logFinish(role, result) {
+  function logFinish(role, result, extra = {}) {
     const payload = {
       role,
       offsetSec: result.offsetSec,
       applied: result.applied,
       confidence: result.confidence,
       peaks: result.peaks,
+      ...extra,
     };
     if (result.applied) {
       console.log(LOG_PREFIX, "finish", payload);
     } else {
-      console.log(LOG_PREFIX, "finish (low confidence, offset kept at 0)", payload);
+      console.log(LOG_PREFIX, "finish (low confidence)", payload);
       reportWarning(LOG_PREFIX, "low confidence", payload);
     }
   }
@@ -161,30 +156,13 @@ export function createAutoSync({
     });
   }
 
-  async function applyGlobalOffset(offsetSec) {
-    if (offsetSec <= 0) return;
-    settings.setLatencyOffset(offsetSec);
-
-    const tracks = trackStore.getTracks();
-    for (const track of tracks) {
-      if (track.offset && track.offset !== 0) {
-        const next = Math.round((track.offset - offsetSec) * 1000) / 1000;
-        await trackStore.setTrackOffset(track, next);
-      }
-    }
-  }
-
-  async function applyTrackOffset(track, measuredOffsetSec) {
-    const globalOffset = settings.getLatencyOffset();
-    const relativeOffset = Math.round((measuredOffsetSec - globalOffset) * 1000) / 1000;
-
-    console.log(LOG_PREFIX, "per-track offset applied", {
-      measuredSec: measuredOffsetSec,
-      globalSec: globalOffset,
-      relativeSec: relativeOffset,
+  async function applyTrackOffset(track, offsetSec, { source } = {}) {
+    const absolute = Math.max(0, Math.round(offsetSec * 1000) / 1000);
+    console.log(LOG_PREFIX, "track offset applied", {
+      source,
+      offsetSec: absolute,
     });
-
-    await trackStore.setTrackOffset(track, relativeOffset);
+    await trackStore.setTrackOffset(track, absolute);
     bus.emit("tracks:changed", { tracks: [...trackStore.getTracks()] });
   }
 
@@ -205,18 +183,9 @@ export function createAutoSync({
     }
 
     logFinish(role, result);
-
-    if (result.applied && result.offsetSec > 0) {
-      if (role === "global") {
-        await applyGlobalOffset(result.offsetSec);
-        notify(`Auto-sync: global offset set to ${Math.round(result.offsetSec * 1000)} ms`, "success");
-      }
-    }
-
     return result;
   }
 
-  /** Wait until reference energy stays above threshold for sustainMs. */
   async function waitForEnergy(getRms) {
     const start = Date.now();
     let highSince = null;
@@ -257,17 +226,17 @@ export function createAutoSync({
   }
 
   /**
-   * Global calibration: play source silently, measure bleed, set global offset.
+   * Measure speaker bleed and set the speakers default offset.
    * Must be called from a user gesture (for ensureShare).
    */
-  async function runCalibration() {
+  async function runSpeakersDefaultCalibration() {
     if (calibrating) return;
     if (!referenceCapture.isAvailable()) {
       notify("Auto-sync needs Chrome/Edge desktop with tab audio sharing.", "warn");
       return;
     }
     if (isUsingHeadphones()) {
-      notify("Auto-sync needs speakers (no headphones) to detect bleed.", "warn");
+      notify("Speaker default calibration needs speakers (no headphones).", "warn");
       return;
     }
 
@@ -286,7 +255,7 @@ export function createAutoSync({
     }
 
     setCalibrating(true);
-    console.log(LOG_PREFIX, "calibration starting");
+    console.log(LOG_PREFIX, "default-speakers calibration starting");
 
     let pcm = null;
     let capturing = false;
@@ -310,15 +279,15 @@ export function createAutoSync({
       pcm = await referenceCapture.stopCapture();
       capturing = false;
     } catch (error) {
-      reportWarning(LOG_PREFIX, "calibration capture failed", error);
-      notify("Auto-sync calibration failed.", "error");
+      reportWarning(LOG_PREFIX, "default-speakers calibration failed", error);
+      notify("Default sync calibration failed.", "error");
     } finally {
       if (capturing) {
         const leftover = await referenceCapture.stopCapture();
         if (!pcm) pcm = leftover;
       }
       setCalibrating(false);
-      console.log(LOG_PREFIX, "calibration finished");
+      console.log(LOG_PREFIX, "default-speakers calibration finished");
     }
 
     if (!pcm || pcm.mic.length < AUTOSYNC_ANALYSIS_HZ || pcm.ref.length < AUTOSYNC_ANALYSIS_HZ) {
@@ -329,27 +298,66 @@ export function createAutoSync({
       return;
     }
 
-    await runAnalysis(pcm, "global");
+    const result = await runAnalysis(pcm, "default-speakers");
+    if (result?.applied && result.offsetSec > 0) {
+      settings.setDefaultOffsetSpeakers(result.offsetSec);
+      notify(
+        `Speakers default set to ${Math.round(result.offsetSec * 1000)} ms`,
+        "success"
+      );
+    } else {
+      reportWarning(LOG_PREFIX, "default-speakers not updated (low confidence)", result);
+      notify("Could not measure speakers default — adjust manually.", "warn");
+    }
   }
 
   /**
-   * Per-take analysis after a confirmed take (non-blocking).
+   * Per-take analysis after a confirmed take.
+   * Uses measured offset when confident; otherwise the route-appropriate default.
    */
   async function analyzeTake(track, pcm) {
-    if (!pcm || !canAutoSync()) return null;
+    if (isUsingHeadphones()) {
+      const fallback = settings.getDefaultOffsetHeadphones();
+      logFinish("per-take", {
+        offsetSec: fallback,
+        applied: true,
+        confidence: { source: "headphones-default" },
+        peaks: [],
+      }, { source: "headphones-default" });
+      await applyTrackOffset(track, fallback, { source: "headphones-default" });
+      return null;
+    }
+
+    if (!canMeasureBleed() || !pcm) {
+      const fallback = settings.getDefaultOffsetSpeakers();
+      logFinish("per-take", {
+        offsetSec: fallback,
+        applied: true,
+        confidence: { source: "speakers-default-no-measurement" },
+        peaks: [],
+      }, { source: "speakers-default-fallback" });
+      await applyTrackOffset(track, fallback, { source: "speakers-default-fallback" });
+      return null;
+    }
+
     const result = await runAnalysis(pcm, "per-take");
-    if (result?.applied) {
-      await applyTrackOffset(track, result.offsetSec);
+    if (result?.applied && result.offsetSec > 0) {
+      await applyTrackOffset(track, result.offsetSec, { source: "measured" });
+    } else {
+      const fallback = settings.getDefaultOffsetSpeakers();
+      logFinish("per-take", {
+        offsetSec: fallback,
+        applied: true,
+        confidence: result?.confidence ?? {},
+        peaks: result?.peaks ?? [],
+      }, { source: "speakers-default-low-confidence", measured: result?.offsetSec ?? 0 });
+      await applyTrackOffset(track, fallback, { source: "speakers-default-low-confidence" });
     }
     return result;
   }
 
-  /**
-   * Called from recording session when a take starts (speaker mode).
-   * Returns stopCapture fn or null.
-   */
   async function beginTakeCapture(micStream) {
-    if (!canAutoSync()) return null;
+    if (!canMeasureBleed()) return null;
     try {
       await referenceCapture.startCapture(micStream);
       return () => referenceCapture.stopCapture();
@@ -359,9 +367,6 @@ export function createAutoSync({
     }
   }
 
-  /**
-   * Ensure tab share before playback. Uses a prompt when no user gesture is available.
-   */
   async function ensureShareBeforePlay({ fromGesture = false } = {}) {
     if (!needsTabShare()) return true;
     if (fromGesture) return ensureShareFromGesture();
@@ -373,13 +378,15 @@ export function createAutoSync({
   }
 
   return {
-    runCalibration,
+    runSpeakersDefaultCalibration,
+    // Back-compat alias
+    runCalibration: runSpeakersDefaultCalibration,
     analyzeTake,
     beginTakeCapture,
     ensureShareBeforePlay,
     ensureShareFromGesture,
     needsTabShare,
-    canAutoSync,
+    canAutoSync: canMeasureBleed,
     isCalibrating,
   };
 }
