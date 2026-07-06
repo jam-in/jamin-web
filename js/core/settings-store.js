@@ -1,7 +1,13 @@
 // Device-wide prefs: default sync offsets (speakers / headphones), raw mic.
 
-import { DEFAULT_SYNC_OFFSET_SEC, STORAGE_KEYS } from "../constants.js";
+import {
+  DEFAULT_SYNC_OFFSET_SEC,
+  STORAGE_KEYS,
+  BLEEDING_MODES,
+  normalizeBleedingMode,
+} from "../constants.js";
 import { isUsingHeadphones } from "../audio-devices.js";
+import { shouldPlayWet } from "./bleeding.js";
 
 const MIN_DEFAULT_OFFSET_SEC = 0;
 const MAX_DEFAULT_OFFSET_SEC = 1.0;
@@ -32,6 +38,10 @@ export function createSettingsStore({ engine, recorder, bus }) {
 
   let defaultOffsetSpeakers = readDefault(STORAGE_KEYS.defaultOffsetSpeakers);
   let defaultOffsetHeadphones = readDefault(STORAGE_KEYS.defaultOffsetHeadphones);
+  let bleedingMode = normalizeBleedingMode(localStorage.getItem(STORAGE_KEYS.bleedingMode));
+  if (localStorage.getItem(STORAGE_KEYS.bleedingMode) !== bleedingMode) {
+    localStorage.setItem(STORAGE_KEYS.bleedingMode, bleedingMode);
+  }
   let rawMicEnabled = false;
   let searchSequence = 0;
 
@@ -91,6 +101,22 @@ export function createSettingsStore({ engine, recorder, bus }) {
     nudgeDefaultOffsetHeadphones(deltaSeconds) {
       const next = Math.round((defaultOffsetHeadphones + deltaSeconds) * 1000) / 1000;
       this.setDefaultOffsetHeadphones(next);
+    },
+
+    getBleedingMode() {
+      return bleedingMode;
+    },
+
+    setBleedingMode(mode) {
+      const normalized = normalizeBleedingMode(mode);
+      if (!BLEEDING_MODES.includes(normalized)) return;
+      bleedingMode = normalized;
+      localStorage.setItem(STORAGE_KEYS.bleedingMode, bleedingMode);
+      bus.emit("settings:bleeding-changed", { bleedingMode });
+    },
+
+    shouldPlayWet(track) {
+      return shouldPlayWet(track, bleedingMode);
     },
 
     getRawMicEnabled() {

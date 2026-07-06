@@ -2,6 +2,8 @@
 
 import { reportError } from "./errors.js";
 import { effectiveStartTime } from "./core/sync-math.js";
+import { BLEEDING_MODE } from "./constants.js";
+import { resolvePlaybackPeaks } from "./core/bleeding.js";
 import { drawTimelineWaveform } from "./waveform.js";
 import { confirmDeleteTake, formatTime, getAccentColor, makeIconButton } from "./ui.js";
 
@@ -151,6 +153,7 @@ export function createTrackListController({ trackStore, settings, videoStore, pl
         buildTrackElement({
           track,
           trackStore,
+          settings,
           getTimelineMetrics,
           getTrackSegment,
           layoutTrackRow,
@@ -166,6 +169,10 @@ export function createTrackListController({ trackStore, settings, videoStore, pl
     });
   }
 
+  function getDisplayPeaks(track) {
+    return resolvePlaybackPeaks(track, settings.getBleedingMode());
+  }
+
   function redrawWaveforms() {
     const metrics = getTimelineMetrics();
     const color = getAccentColor();
@@ -175,6 +182,7 @@ export function createTrackListController({ trackStore, settings, videoStore, pl
       if (!track) return;
       const segment = getTrackSegment(track, metrics);
       canvas._segment = segment;
+      canvas._peaks = getDisplayPeaks(track);
       drawTimelineWaveform(canvas, canvas._peaks, { ...segment, color });
     });
     updateRuler();
@@ -186,6 +194,14 @@ export function createTrackListController({ trackStore, settings, videoStore, pl
   bus.on("tracks:changed", () => renderTracks());
   bus.on("video:loaded", () => renderTracks());
   bus.on("settings:defaults-changed", () => redrawWaveforms());
+  bus.on("settings:bleeding-changed", () => {
+    redrawWaveforms();
+    const perTrack = settings.getBleedingMode() === BLEEDING_MODE.PER_TRACK;
+    elements.trackList.querySelectorAll(".timeline-bleeding input").forEach((chk) => {
+      chk.disabled = !perTrack;
+      chk.closest(".timeline-bleeding")?.classList.toggle("is-disabled", !perTrack);
+    });
+  });
   bus.on("timeline:ready", () => {
     redrawWaveforms();
     layoutAllTrackRows();
@@ -198,7 +214,7 @@ export function createTrackListController({ trackStore, settings, videoStore, pl
   return { renderTracks, redrawWaveforms, layoutAllTrackRows };
 }
 
-function buildTrackElement({ track, trackStore, getTimelineMetrics, getTrackSegment, layoutTrackRow, elements, notify }) {
+function buildTrackElement({ track, trackStore, settings, getTimelineMetrics, getTrackSegment, layoutTrackRow, elements, notify }) {
   const row = document.createElement("div");
   row.className = "timeline-track";
   row.dataset.trackId = track.id;
@@ -206,7 +222,7 @@ function buildTrackElement({ track, trackStore, getTimelineMetrics, getTrackSegm
   const canvas = document.createElement("canvas");
   canvas.className = "timeline-wave";
   canvas.dataset.trackId = track.id;
-  canvas._peaks = track.peaks;
+  canvas._peaks = resolvePlaybackPeaks(track, settings.getBleedingMode());
 
   const segmentEl = document.createElement("div");
   segmentEl.className = "timeline-segment";
@@ -231,6 +247,7 @@ function buildTrackElement({ track, trackStore, getTimelineMetrics, getTrackSegm
     const metrics = getTimelineMetrics();
     const segment = getTrackSegment(track, metrics);
     canvas._segment = segment;
+    canvas._peaks = resolvePlaybackPeaks(track, settings.getBleedingMode());
     drawTimelineWaveform(canvas, canvas._peaks, { ...segment, color: getAccentColor() });
     layoutTrackRow(row);
   };
@@ -249,6 +266,30 @@ function buildTrackElement({ track, trackStore, getTimelineMetrics, getTrackSegm
     event.stopPropagation();
     resetTrackOffset(trackStore, track, renderSyncMs, refreshSegment, notify);
   });
+
+  const dryWrap = document.createElement("label");
+  dryWrap.className = "timeline-bleeding";
+  const dryChk = document.createElement("input");
+  dryChk.type = "checkbox";
+  dryChk.checked = track.dry === true || (track.dry == null && track.bleeding === false);
+  dryChk.title = "Play bleed-removed (dry) version";
+  dryChk.setAttribute("aria-label", "Dry");
+  const syncDryChk = () => {
+    const perTrack = settings.getBleedingMode() === BLEEDING_MODE.PER_TRACK;
+    dryChk.disabled = !perTrack;
+    dryWrap.classList.toggle("is-disabled", !perTrack);
+  };
+  syncDryChk();
+  dryChk.addEventListener("change", () => {
+    trackStore.setTrackDry(track, dryChk.checked).catch((error) => {
+      reportError("setTrackDry", error, null, notify);
+    });
+  });
+
+  const dryText = document.createElement("span");
+  dryText.className = "timeline-bleeding-label";
+  dryText.textContent = "Dry";
+  dryWrap.append(dryChk, dryText);
 
   const volWrap = document.createElement("div");
   volWrap.className = "timeline-vol";
@@ -298,7 +339,7 @@ function buildTrackElement({ track, trackStore, getTimelineMetrics, getTrackSegm
   deleteBtn.classList.add("danger");
   delWrap.append(deleteBtn);
 
-  controls.append(sync, volWrap, soloWrap, delWrap);
+  controls.append(sync, dryWrap, volWrap, soloWrap, delWrap);
   controls.addEventListener("click", (event) => event.stopPropagation());
 
   row._segmentEl = segmentEl;

@@ -569,6 +569,30 @@ html[data-nudge="on"] .timeline-sync {
   cursor: pointer;
   user-select: none;
 }
+.timeline-bleeding {
+  display: none;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--fg-dim);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+html[data-nudge="on"] .timeline-bleeding {
+  display: inline-flex;
+}
+.timeline-bleeding.is-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.timeline-bleeding input {
+  margin: 0;
+  cursor: pointer;
+}
+.timeline-bleeding.is-disabled input {
+  cursor: not-allowed;
+}
 .timeline-vol {
   position: relative;
 }

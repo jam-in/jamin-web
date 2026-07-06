@@ -1,14 +1,23 @@
-// Logo dropdown menu: share link, Advanced toggle, default sync, About.
+// Logo dropdown menu: share link, Advanced toggle, bleeding, default sync, About.
 
 import { JAMIN_VERSION, STORAGE_KEYS } from "./constants.js";
 import { shareDeeplink } from "./deeplink.js";
 
-export function initMenu({ elements, bus, trackList, videoStore, notify }) {
+export function initMenu({ elements, bus, trackList, trackStore, settings, videoStore, notify }) {
   const savedNudge = localStorage.getItem(STORAGE_KEYS.nudge) === "on";
   applyNudge(elements, savedNudge);
 
   if (elements.aboutVersion) {
     elements.aboutVersion.textContent = `Version ` + JAMIN_VERSION;
+  }
+
+  if (elements.bleedingMode) {
+    elements.bleedingMode.value = settings.getBleedingMode();
+    elements.bleedingMode.addEventListener("change", () => {
+      settings.setBleedingMode(elements.bleedingMode.value);
+      trackStore.refreshPlaybackForBleedingMode();
+      trackList.redrawWaveforms();
+    });
   }
 
   elements.logoBtn?.addEventListener("click", (event) => {

@@ -23,6 +23,7 @@ import { createSessionStore } from "./core/session-store.js";
 import { createRecordingSession } from "./core/recording-session.js";
 import { createAutoSync } from "./core/auto-sync.js";
 import { createReferenceCapture } from "./reference-capture.js";
+import { createBleedingProcessor } from "./core/bleeding-processor.js";
 import { initTimelineSync } from "./core/timeline-sync.js";
 import { parseDeeplink } from "./deeplink.js";
 
@@ -33,8 +34,10 @@ const engine = new PlaybackEngine(() => player.getCurrentTime());
 const notify = (message, kind) => showToast(elements, message, kind);
 
 const bus = createEventBus();
-const trackStore = createTrackStore({ engine, bus });
 const settings = createSettingsStore({ engine, recorder, bus });
+const trackStore = createTrackStore({ engine, settings, bus });
+const bleedingProcessor = createBleedingProcessor({ trackStore, settings });
+trackStore.attachBleedingProcessor(bleedingProcessor);
 const sessionStore = createSessionStore({ bus });
 const referenceCapture = createReferenceCapture();
 const videoStore = createVideoStore({
@@ -63,6 +66,7 @@ const recordingSession = createRecordingSession({
   videoStore,
   settings,
   autoSync,
+  bleedingProcessor,
   elements,
   bus,
   notify,
@@ -83,7 +87,7 @@ initTimelineSync({ player, videoStore, bus });
 initPlayhead({ player, elements, bus, autoSync });
 initTheme();
 initLatencyOffset({ elements, settings, bus, autoSync });
-initMenu({ elements, bus, trackList, videoStore, notify });
+initMenu({ elements, bus, trackList, trackStore, settings, videoStore, notify });
 initAudioDevices({ settings });
 initSearch({ elements, videoStore, settings, notify });
 initRecording({ player, recordingSession });

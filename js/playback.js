@@ -75,9 +75,9 @@ export class PlaybackEngine {
   }
 
   // Decode a stored track's blob into an AudioBuffer once and cache it.
-  async addTrack(track) {
+  async addTrack(track, { blob = track.blob } = {}) {
     const ctx = this._ctxReady();
-    const arrayBuf = await track.blob.arrayBuffer();
+    const arrayBuf = await blob.arrayBuffer();
     let buffer;
     try {
       buffer = await ctx.decodeAudioData(arrayBuf.slice(0));
@@ -130,6 +130,22 @@ export class PlaybackEngine {
       return;
     }
     t.gainNode.gain.value = t.volume;
+  }
+
+  // Swap decoded audio (e.g. wet ↔ dry) while keeping schedule state.
+  async replaceTrackBuffer(id, blob) {
+    const entry = this.tracks.find((x) => x.id === id);
+    if (!entry) return null;
+    const ctx = this._ctxReady();
+    try {
+      const arrayBuf = await blob.arrayBuffer();
+      entry.buffer = await ctx.decodeAudioData(arrayBuf.slice(0));
+      if (this.running) this._scheduleOne(entry);
+      return entry;
+    } catch (error) {
+      reportWarning("playback.replaceTrackBuffer", id, error);
+      return null;
+    }
   }
 
   // Legacy no-op — per-track offsets are absolute.

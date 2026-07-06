@@ -19,6 +19,7 @@ export function createRecordingSession({
   videoStore,
   settings,
   autoSync,
+  bleedingProcessor,
   elements,
   bus,
   notify,
@@ -256,6 +257,7 @@ export function createRecordingSession({
       name: `Take ${trackStore.getTracks().length + 1}`,
       startTime: recStartVideoTime,
       offset: 0,
+      dry: false,
       duration,
       mimeType,
       volume: 1,
@@ -269,10 +271,11 @@ export function createRecordingSession({
       const track = await trackStore.add(trackData);
       notify("Take saved.", "success");
 
-      if (autoSync && pcm) {
-        autoSync.analyzeTake(track, pcm).catch((error) => {
-          reportWarning("recording.autoSync", error);
-        });
+      if (autoSync) {
+        await autoSync.analyzeTake(track, pcm);
+      }
+      if (bleedingProcessor && pcm?.ref?.length) {
+        await bleedingProcessor.processTrackFromPcm(track, pcm);
       }
     } catch (error) {
       reportError("finalizeTake.save", error, "Could not save this take.", notify);
