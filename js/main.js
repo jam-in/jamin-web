@@ -21,6 +21,8 @@ import { createSettingsStore } from "./core/settings-store.js";
 import { createVideoStore } from "./core/video-store.js";
 import { createSessionStore } from "./core/session-store.js";
 import { createRecordingSession } from "./core/recording-session.js";
+import { createAutoSync } from "./core/auto-sync.js";
+import { createReferenceCapture } from "./reference-capture.js";
 import { initTimelineSync } from "./core/timeline-sync.js";
 import { parseDeeplink } from "./deeplink.js";
 
@@ -34,10 +36,21 @@ const bus = createEventBus();
 const trackStore = createTrackStore({ engine, bus });
 const settings = createSettingsStore({ engine, recorder, bus });
 const sessionStore = createSessionStore({ bus });
+const referenceCapture = createReferenceCapture();
 const videoStore = createVideoStore({
   player,
   trackStore,
   sessionStore,
+  elements,
+  bus,
+  notify,
+});
+const autoSync = createAutoSync({
+  referenceCapture,
+  settings,
+  trackStore,
+  player,
+  recorder,
   elements,
   bus,
   notify,
@@ -49,6 +62,7 @@ const recordingSession = createRecordingSession({
   trackStore,
   videoStore,
   settings,
+  autoSync,
   elements,
   bus,
   notify,
@@ -66,11 +80,11 @@ const trackList = createTrackListController({
 
 initHistory({ elements, videoStore, trackStore, bus, notify });
 initTimelineSync({ player, videoStore, bus });
-initPlayhead({ player, elements, bus });
+initPlayhead({ player, elements, bus, autoSync });
 initTheme();
 initLatencyOffset({ elements, settings, bus });
-initMenu({ elements, bus, trackList, settings, videoStore, notify });
-initAudioDevices({ elements, settings });
+initMenu({ elements, bus, trackList, autoSync, videoStore, notify });
+initAudioDevices({ settings });
 initSearch({ elements, videoStore, settings, notify });
 initRecording({ player, recordingSession });
 const deeplink = parseDeeplink();

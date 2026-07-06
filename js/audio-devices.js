@@ -1,56 +1,55 @@
-// Headphone detection + raw-mic mode.
+// Headphone detection — used to gate auto-sync (speaker bleed mode only).
+// Conservative: assume speakers unless the default output is clearly headphones.
+// Windows often lists unplugged "Headphones (…)" endpoints; we ignore those.
 
-import { STORAGE_KEYS } from "./constants.js";
 import { reportWarning } from "./errors.js";
 
-const HEADPHONE_HINTS = [
-  "headphone", "headset", "airpod", "earbud", "earphone",
-  "bluetooth", "wireless", "buds", "wh-", "sony", "bose",
-];
+const LOG_PREFIX = "[Jam-in audio]";
 
-let headphonesDetected = null;
-let rawMicOverride = "auto";
+// Only match when the default route is clearly headphones.
+const HEADPHONE_LABEL = /headphone|headset|earbud|airpod|earphone|in-ear/i;
+const SPEAKER_LABEL = /speaker|built-in|internal|loudspeaker|display|hdmi|monitor|realtek/i;
 
-export function initAudioDevices({ elements, settings }) {
-  rawMicOverride = localStorage.getItem(STORAGE_KEYS.rawMicOverride) || "auto";
-  if (elements.advRawMic) {
-    elements.advRawMic.value = rawMicOverride;
-  }
+let headphonesDetected = false;
 
+export function initAudioDevices({ settings }) {
   refreshHeadphoneDetection();
   applyRawMic(settings);
 
   if (navigator.mediaDevices?.addEventListener) {
     navigator.mediaDevices.addEventListener("devicechange", () => {
       refreshHeadphoneDetection();
-      applyRawMic(settings);
     });
   }
 }
 
-export function setRawMicOverride(settings, value) {
-  rawMicOverride = value === "on" || value === "off" ? value : "auto";
-  localStorage.setItem(STORAGE_KEYS.rawMicOverride, rawMicOverride);
-  applyRawMic(settings);
+/** Always use raw mic (no AEC/NS) for bleed detection. */
+export function applyRawMic(settings) {
+  settings.setRawMic(true);
 }
 
-export function getRawMicOverride() {
-  return rawMicOverride;
-}
-
-export function getEffectiveRawMic() {
-  if (rawMicOverride === "on") return true;
-  if (rawMicOverride === "off") return false;
+/** True only when the default audio output is confidently headphones. */
+export function isUsingHeadphones() {
   return headphonesDetected === true;
 }
 
-export function applyRawMic(settings) {
-  settings.setRawMic(getEffectiveRawMic());
+function classifyDefaultOutput(label) {
+  const text = (label || "").trim();
+  if (!text) return "unknown";
+
+  const hasHeadphone = HEADPHONE_LABEL.test(text);
+  const hasSpeaker = SPEAKER_LABEL.test(text);
+
+  // "Speakers (Realtek)" → speakers; "Headphones (Realtek)" → headphones.
+  if (hasHeadphone && !hasSpeaker) return "headphones";
+  if (hasSpeaker && !hasHeadphone) return "speakers";
+  if (hasHeadphone) return "headphones";
+  return "unknown";
 }
 
-async function refreshHeadphoneDetection() {
+export async function refreshHeadphoneDetection() {
   if (!navigator.mediaDevices?.enumerateDevices) {
-    headphonesDetected = null;
+    headphonesDetected = false;
     return;
   }
 
@@ -58,28 +57,27 @@ async function refreshHeadphoneDetection() {
     const devices = await navigator.mediaDevices.enumerateDevices();
     const outputs = devices.filter((device) => device.kind === "audiooutput");
     if (!outputs.length) {
-      headphonesDetected = null;
+      headphonesDetected = false;
       return;
     }
 
-    const builtInOnly = outputs.every((device) => {
-      const label = (device.label || "").toLowerCase();
-      return !label || label.includes("default") || label.includes("built-in")
-        || label.includes("speaker") || label.includes("internal");
-    });
+    const defaultOut = outputs.find((d) => d.deviceId === "default")
+      || outputs.find((d) => /^default/i.test(d.label || ""))
+      || outputs[0];
 
-    if (!builtInOnly) {
-      headphonesDetected = true;
-      return;
-    }
+    const classification = classifyDefaultOutput(defaultOut?.label);
+  // Unknown labels (before permission) → assume speakers so auto-sync stays available.
+    headphonesDetected = classification === "headphones";
 
-    const hinted = outputs.some((device) => {
-      const label = (device.label || "").toLowerCase();
-      return HEADPHONE_HINTS.some((hint) => label.includes(hint));
+    console.log(LOG_PREFIX, "output detection", {
+      label: defaultOut?.label || "(empty)",
+      deviceId: defaultOut?.deviceId,
+      classification,
+      headphonesDetected,
+      outputCount: outputs.length,
     });
-    headphonesDetected = hinted ? true : false;
   } catch (error) {
     reportWarning("detectHeadphones", error);
-    headphonesDetected = null;
+    headphonesDetected = false;
   }
 }

@@ -1,10 +1,9 @@
-// Logo dropdown menu: share link, Advanced toggle, mic mode, About.
+// Logo dropdown menu: share link, Advanced toggle, auto-sync, About.
 
 import { JAMIN_VERSION, STORAGE_KEYS } from "./constants.js";
-import { setRawMicOverride } from "./audio-devices.js";
 import { shareDeeplink } from "./deeplink.js";
 
-export function initMenu({ elements, bus, trackList, settings, videoStore, notify }) {
+export function initMenu({ elements, bus, trackList, autoSync, videoStore, notify }) {
   const savedNudge = localStorage.getItem(STORAGE_KEYS.nudge) === "on";
   applyNudge(elements, savedNudge);
 
@@ -23,8 +22,9 @@ export function initMenu({ elements, bus, trackList, settings, videoStore, notif
     trackList.layoutAllTrackRows();
   });
 
-  elements.advRawMic?.addEventListener("change", () => {
-    setRawMicOverride(settings, elements.advRawMic.value);
+  elements.autoSyncBtn?.addEventListener("click", () => {
+    closeMenu(elements);
+    autoSync?.runCalibration();
   });
 
   elements.shareLinkBtn?.addEventListener("click", () => {

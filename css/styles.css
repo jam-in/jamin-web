@@ -158,6 +158,19 @@ html[data-nudge="on"] .menu-advanced { display: block; }
   gap: 6px;
 }
 .menu-advanced .global-sync-label { font-size: 11px; }
+.menu-advanced .autosync-btn {
+  width: 100%;
+  margin-top: 8px;
+  text-align: center;
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-3);
+  color: var(--fg);
+  cursor: pointer;
+}
+.menu-advanced .autosync-btn:hover { background: var(--bg-2); }
 
 /* ---------- Play-history dropdown (anchored under the search input) ---------- */
 .history-panel {

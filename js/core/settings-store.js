@@ -2,8 +2,8 @@
 
 import { DEFAULT_LATENCY_OFFSET_SEC, STORAGE_KEYS } from "../constants.js";
 
-const MIN_OFFSET_SEC = -0.3;
-const MAX_OFFSET_SEC = 0.8;
+const MIN_OFFSET_SEC = 0;
+const MAX_OFFSET_SEC = 1.0;
 
 function clampOffset(seconds) {
   return Math.max(MIN_OFFSET_SEC, Math.min(MAX_OFFSET_SEC, seconds));

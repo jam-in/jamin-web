@@ -47,15 +47,9 @@
                   <button id="offsetLater" class="icon-btn" type="button" title="10 ms later">▶</button>
                 </div>
               </div>
-            </div>
-
-            <div class="menu-item menu-select">
-              <span class="menu-select-label">Microphone mode</span>
-              <select id="advRawMic" aria-label="Microphone mode">
-                <option value="auto">Auto (headphones)</option>
-                <option value="on">Raw Mic</option>
-                <option value="off">Filtered Mic</option>
-              </select>
+              <button id="autoSyncBtn" class="menu-item autosync-btn" type="button" title="Measure speaker bleed and set global sync offset">
+                Auto-sync
+              </button>
             </div>
 
             <div class="menu-divider"></div>
@@ -152,7 +146,7 @@
       <ul class="about-list">
         <li>Recording starts as you <strong>play</strong>; <strong>pause</strong> will keep or discard the take.</li>
         <li>Seeking mid-take discards that recording.</li>
-        <li>Wear headphones for the cleanest capture — set <em>Microphone mode</em> in the menu.</li>
+        <li>Wear headphones for the cleanest capture; use speakers for auto-sync bleed detection.</li>
       </ul>
       <div class="modal-actions">
         <button id="aboutClose" class="btn primary" type="button">Close</button>

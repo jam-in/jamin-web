@@ -2,7 +2,7 @@
 
 import { STATE } from "./youtube.js";
 
-export function initPlayhead({ player, elements, bus }) {
+export function initPlayhead({ player, elements, bus, autoSync }) {
   let dragging = false;
   let playheadDragged = false;
 
@@ -59,10 +59,17 @@ export function initPlayhead({ player, elements, bus }) {
     requestAnimationFrame(tick);
   }
 
-  function togglePlayPause() {
+  async function togglePlayPause() {
     const state = player.getState();
-    if (state === STATE.PLAYING) player.pause();
-    else player.play();
+    if (state === STATE.PLAYING) {
+      player.pause();
+      return;
+    }
+    if (autoSync) {
+      const ok = await autoSync.ensureShareBeforePlay({ fromGesture: true });
+      if (!ok) return;
+    }
+    player.play();
   }
 
   elements.playhead?.addEventListener("pointerdown", (event) => {

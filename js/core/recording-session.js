@@ -7,7 +7,8 @@ import { SEEK_DETECT_SEC } from "../constants.js";
 import { reportError, reportWarning } from "../errors.js";
 import { formatTime } from "../ui.js";
 import { computePeaks, isSilentOrNoise } from "../waveform.js";
-import { getEffectiveRawMic } from "../audio-devices.js";
+
+import { applyRawMic, refreshHeadphoneDetection } from "../audio-devices.js";
 import { STATE } from "../youtube.js";
 
 export function createRecordingSession({
@@ -17,25 +18,32 @@ export function createRecordingSession({
   trackStore,
   videoStore,
   settings,
+  autoSync,
   elements,
   bus,
   notify,
 }) {
-  // A take is "active" while the mic is capturing the current play segment.
   let active = false;
   let keepTakePending = false;
   let finalizing = false;
+  let calibrating = false;
   let recStartVideoTime = 0;
   let recStartedAt = 0;
   let lastVideoTime = null;
   let uiTimer = null;
+  let stopSyncCapture = null;
 
-  // Live waveform sampling (Web Audio analyser tapping the mic stream).
   let liveCtx = null;
   let liveAnalyser = null;
   let liveSource = null;
   let liveData = null;
   let liveTimer = null;
+
+  let sharePromptInFlight = false;
+
+  bus.on("autosync:calibrating", (event) => {
+    calibrating = !!event.detail?.active;
+  });
 
   function emitState() {
     bus.emit("recording:state-changed", { active });
@@ -50,7 +58,7 @@ export function createRecordingSession({
       liveSource = liveCtx.createMediaStreamSource(stream);
       liveAnalyser = liveCtx.createAnalyser();
       liveAnalyser.fftSize = 1024;
-      liveSource.connect(liveAnalyser); // analyser only — never to destination
+      liveSource.connect(liveAnalyser);
       liveData = new Float32Array(liveAnalyser.fftSize);
       liveTimer = setInterval(sampleLive, 60);
     } catch (error) {
@@ -79,6 +87,18 @@ export function createRecordingSession({
       liveSource = null;
     }
     liveAnalyser = null;
+  }
+
+  async function endSyncCapture() {
+    if (!stopSyncCapture) return null;
+    const stop = stopSyncCapture;
+    stopSyncCapture = null;
+    try {
+      return await stop();
+    } catch (error) {
+      reportWarning("recording.syncCapture", error);
+      return null;
+    }
   }
 
   function elapsedSec() {
@@ -132,23 +152,21 @@ export function createRecordingSession({
     });
   }
 
-  // Begin capturing a take for the play segment that just started.
   async function startTake() {
-    if (active || keepTakePending || finalizing) return;
+    if (active || keepTakePending || finalizing || calibrating) return;
     if (!videoStore.getVideoId()) return;
 
-    settings.setRawMic(getEffectiveRawMic());
-    if (getEffectiveRawMic()) recorder.resetMic();
+    applyRawMic(settings);
+    recorder.resetMic();
 
     try {
       await recorder.ensureMic();
+      await refreshHeadphoneDetection();
     } catch (error) {
       notify(error.message, "error");
       return;
     }
 
-    // The mic request is async; if the user paused (or seeked) meanwhile, abort
-    // so we don't start capturing over a stopped video.
     if (player.getState() !== STATE.PLAYING) return;
 
     recStartVideoTime = player.getCurrentTime();
@@ -163,6 +181,10 @@ export function createRecordingSession({
     }
     active = true;
 
+    if (autoSync && recorder.stream) {
+      stopSyncCapture = await autoSync.beginTakeCapture(recorder.stream);
+    }
+
     showIndicator();
     startUiLoop();
     bus.emit("recording:take-started", { startTime: recStartVideoTime });
@@ -170,12 +192,12 @@ export function createRecordingSession({
     emitState();
   }
 
-  // End the current take and ask whether to keep it. By the time we get here
-  // the player is already paused (user pause), ended, or paused for a seek.
   async function finalizeTake() {
     if (!active || finalizing) return;
     finalizing = true;
     active = false;
+
+    const pcm = await endSyncCapture();
 
     hideIndicator();
     engine.stop();
@@ -209,7 +231,6 @@ export function createRecordingSession({
       reportError("finalizeTake.decode", error, null, notify);
     }
 
-    // Don't bother the user with a keep/discard prompt for an empty take.
     if (silent) {
       finalizing = false;
       bus.emit("recording:take-ended", { kept: false });
@@ -245,18 +266,23 @@ export function createRecordingSession({
     };
 
     try {
-      await trackStore.add(trackData);
+      const track = await trackStore.add(trackData);
       notify("Take saved.", "success");
+
+      if (autoSync && pcm) {
+        autoSync.analyzeTake(track, pcm).catch((error) => {
+          reportWarning("recording.autoSync", error);
+        });
+      }
     } catch (error) {
       reportError("finalizeTake.save", error, "Could not save this take.", notify);
     }
   }
 
-  // Drop the in-progress take without prompting (used when a seek makes the
-  // recording meaningless). Stops the recorder and resets state.
   async function discardTake() {
     if (!active) return;
     active = false;
+    await endSyncCapture();
     hideIndicator();
     engine.stop();
     stopUiLoop();
@@ -271,15 +297,11 @@ export function createRecordingSession({
     }
   }
 
-  // Seeking (YT scrubber or the green playhead) breaks continuity, so the take
-  // is thrown away rather than kept. Warn, but don't block the user.
   async function handleSeekDuringTake() {
     reportWarning("recording.seek", "Discarded in-progress take because the video was seeked.");
     notify("Recording discarded — you seeked mid-take.", "warn");
     await discardTake();
-    // Honour "always record on play": if playback keeps going past the seek,
-    // start a fresh take from the new position.
-    if (player.getState() === STATE.PLAYING) {
+    if (player.getState() === STATE.PLAYING && !calibrating) {
       engine.start();
       startTake();
     }
@@ -287,16 +309,10 @@ export function createRecordingSession({
 
   function tickUi() {
     if (!active) return;
-
-    // Only track position while actually playing. During buffering (e.g. right
-    // after a seek) getCurrentTime already reports the new target, so updating
-    // lastVideoTime here would mask the seek and let the old take run on.
     if (player.getState() !== STATE.PLAYING) return;
 
     const currentTime = player.getCurrentTime();
 
-    // A seek mid-take is a discontinuity: discard this take (and start a fresh
-    // one from the new position while playback continues).
     if (lastVideoTime != null) {
       const jump = Math.abs(currentTime - lastVideoTime);
       if (jump > SEEK_DETECT_SEC) {
@@ -311,19 +327,37 @@ export function createRecordingSession({
     }
   }
 
+  async function onPlaying() {
+    if (keepTakePending || finalizing) return;
+    if (calibrating) return;
+
+    if (autoSync?.needsTabShare() && !sharePromptInFlight) {
+      sharePromptInFlight = true;
+      player.pause();
+      const ok = await autoSync.ensureShareBeforePlay({ fromGesture: false });
+      sharePromptInFlight = false;
+      if (!ok) return;
+      player.play();
+      return;
+    }
+
+    engine.start();
+    startTake();
+  }
+
   function onPlayerStateChange(state) {
     if (state === STATE.PLAYING) {
-      if (keepTakePending || finalizing) return;
-      engine.start();
-      startTake();
+      onPlaying();
     } else if (state === STATE.PAUSED) {
+      if (calibrating) return;
       engine.stop();
       finalizeTake();
     } else if (state === STATE.ENDED) {
+      if (calibrating) return;
       engine.stop();
       finalizeTake();
     } else if (state === STATE.BUFFERING) {
-      engine.stop();
+      if (!calibrating) engine.stop();
     }
   }
 

@@ -11,7 +11,7 @@ export function bindElements() {
       "logoBtn",
       "mainMenu",
       "advNudgeChk",
-      "advRawMic",
+      "autoSyncBtn",
       "aboutBtn",
       "aboutModal",
       "aboutClose",
