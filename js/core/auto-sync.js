@@ -21,6 +21,18 @@ const WORKER_URL = new URL("../auto-sync-worker.js", import.meta.url);
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+function formatOffsetMs(offsetSec) {
+  return `${Math.round((offsetSec || 0) * 1000)} ms`;
+}
+
+/** Best-peak lag for logs — never substitute the fallback default. */
+function measuredOffsetSec(result) {
+  if (result?.measuredOffsetSec > 0) return result.measuredOffsetSec;
+  if (result?.offsetSec > 0) return result.offsetSec;
+  const peakLag = result?.peaks?.[0]?.lagSec;
+  return peakLag > 0 ? peakLag : 0;
+}
+
 export function createAutoSync({
   referenceCapture,
   settings,
@@ -98,14 +110,19 @@ export function createAutoSync({
   }
 
   function logFinish(role, result, extra = {}) {
+    const measured = measuredOffsetSec(result);
+    const { appliedOffsetSec: extraApplied, ...restExtra } = extra;
+    const appliedOffset = extraApplied ?? (result.applied ? measured : null);
     const payload = {
       role,
-      offsetSec: result.offsetSec,
+      measuredOffsetSec: measured,
       applied: result.applied,
       confidence: result.confidence,
       peaks: result.peaks,
-      ...extra,
+      ...restExtra,
     };
+    if (appliedOffset != null) payload.appliedOffsetSec = appliedOffset;
+
     if (result.applied) {
       console.log(LOG_PREFIX, "finish", payload);
     } else {
@@ -156,11 +173,12 @@ export function createAutoSync({
     });
   }
 
-  async function applyTrackOffset(track, offsetSec, { source } = {}) {
+  async function applyTrackOffset(track, offsetSec, { source, measuredOffsetSec: measured } = {}) {
     const absolute = Math.max(0, Math.round(offsetSec * 1000) / 1000);
     console.log(LOG_PREFIX, "track offset applied", {
       source,
-      offsetSec: absolute,
+      appliedOffsetSec: absolute,
+      ...(measured > 0 && measured !== absolute ? { measuredOffsetSec: measured } : {}),
     });
     await trackStore.setTrackOffset(track, absolute);
     bus.emit("tracks:changed", { tracks: [...trackStore.getTracks()] });
@@ -299,15 +317,28 @@ export function createAutoSync({
     }
 
     const result = await runAnalysis(pcm, "default-speakers");
-    if (result?.applied && result.offsetSec > 0) {
-      settings.setDefaultOffsetSpeakers(result.offsetSec);
-      notify(
-        `Speakers default set to ${Math.round(result.offsetSec * 1000)} ms`,
-        "success"
-      );
+    const measured = measuredOffsetSec(result);
+    if (result?.applied && measured > 0) {
+      settings.setDefaultOffsetSpeakers(measured);
+      notify(`Speakers default set to ${formatOffsetMs(measured)}`, "success");
     } else {
-      reportWarning(LOG_PREFIX, "default-speakers not updated (low confidence)", result);
-      notify("Could not measure speakers default — adjust manually.", "warn");
+      const fallback = settings.getDefaultOffsetSpeakers();
+      reportWarning(LOG_PREFIX, "default-speakers not updated (low confidence)", {
+        measuredOffsetSec: measured,
+        appliedOffsetSec: fallback,
+        ...result,
+      });
+      if (measured > 0) {
+        notify(
+          `Low confidence — measured ${formatOffsetMs(measured)}, kept ${formatOffsetMs(fallback)}`,
+          "warn"
+        );
+      } else {
+        notify(
+          `Could not measure speakers default — kept ${formatOffsetMs(fallback)}`,
+          "warn"
+        );
+      }
     }
   }
 
@@ -341,17 +372,15 @@ export function createAutoSync({
     }
 
     const result = await runAnalysis(pcm, "per-take");
-    if (result?.applied && result.offsetSec > 0) {
-      await applyTrackOffset(track, result.offsetSec, { source: "measured" });
+    const measured = measuredOffsetSec(result);
+    if (result?.applied && measured > 0) {
+      await applyTrackOffset(track, measured, { source: "measured" });
     } else {
       const fallback = settings.getDefaultOffsetSpeakers();
-      logFinish("per-take", {
-        offsetSec: fallback,
-        applied: true,
-        confidence: result?.confidence ?? {},
-        peaks: result?.peaks ?? [],
-      }, { source: "speakers-default-low-confidence", measured: result?.offsetSec ?? 0 });
-      await applyTrackOffset(track, fallback, { source: "speakers-default-low-confidence" });
+      await applyTrackOffset(track, fallback, {
+        source: "speakers-default-low-confidence",
+        measuredOffsetSec: measured,
+      });
     }
     return result;
   }

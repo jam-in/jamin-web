@@ -96,6 +96,7 @@ function mergePeaks(peaks, mergeSamples, sampleRate) {
  * Mic can only lag the reference — search (0, maxLagSec].
  *
  * @returns {{ offsetSec: number, confidence: object, peaks: object[], applied: boolean }}
+ *   offsetSec — best peak lag (always); applied — whether confidence passed to use it
  */
 export function pickOffset(corr, sampleRate, {
   maxLagSec = 1.0,
@@ -146,12 +147,11 @@ export function pickOffset(corr, sampleRate, {
   const confident = confidence.prominence >= minProminence
     && confidence.peakMedianRatio >= minPeakMedian;
 
-  const offsetSec = confident
-    ? Math.round(main.lagSec * 1000) / 1000
-    : 0;
+  const measuredOffsetSec = Math.round((main.index / sampleRate) * 1000) / 1000;
 
   return {
-    offsetSec,
+    measuredOffsetSec,
+    offsetSec: measuredOffsetSec,
     confidence,
     peaks: peaks.map((p) => ({
       lagSec: Math.round(p.lagSec * 1000) / 1000,

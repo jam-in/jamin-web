@@ -26,6 +26,7 @@ self.onmessage = (event) => {
       ok: true,
       role,
       offsetSec: result.offsetSec,
+      measuredOffsetSec: result.measuredOffsetSec ?? result.offsetSec,
       confidence: result.confidence,
       peaks: result.peaks,
       applied: result.applied,

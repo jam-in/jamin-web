@@ -1,7 +1,7 @@
 // App-wide constants and persisted storage keys.
 
 // Offline shell cache — bump when sw.js SHELL list or assets change.
-export const JAMIN_VERSION = "v46";
+export const JAMIN_VERSION = "v49";
 
 export const SEARCH_KEYWORD = "karaoke";
 
@@ -60,8 +60,10 @@ export const AUTOSYNC_MAX_LAG_SEC = 1.0;
 export const AUTOSYNC_MERGE_SEC = 0.04;
 export const AUTOSYNC_ANALYSIS_HZ = 16000;
 // Hardened thresholds — low confidence falls back to the default offset.
-export const AUTOSYNC_MIN_PROMINENCE = 2.2;
-export const AUTOSYNC_MIN_PEAK_MEDIAN = 5.0;
+// Calibrated from speaker Auto runs: good ~316–317 ms had prominence ≥4.1 and
+// peakMedianRatio ≥75; a false 71 ms hit had 2.4 and 26.
+export const AUTOSYNC_MIN_PROMINENCE = 3.5;
+export const AUTOSYNC_MIN_PEAK_MEDIAN = 30.0;
 export const AUTOSYNC_ENERGY_THRESHOLD = 0.008;
 export const AUTOSYNC_ENERGY_WAIT_MS = 15000;
 export const AUTOSYNC_ENERGY_SUSTAIN_MS = 200;
