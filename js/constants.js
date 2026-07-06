@@ -1,7 +1,7 @@
 // App-wide constants and persisted storage keys.
 
 // Offline shell cache — bump when sw.js SHELL list or assets change.
-export const JAMIN_VERSION = "v49";
+export const JAMIN_VERSION = "v50";
 
 export const SEARCH_KEYWORD = "karaoke";
 

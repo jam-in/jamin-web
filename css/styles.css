@@ -400,6 +400,16 @@ html[data-nudge="on"] .menu-advanced { display: block; }
   font-size: 15px;
   z-index: 5;
 }
+.player-overlay.is-actionable {
+  cursor: pointer;
+  background: rgba(0, 0, 0, 0.82);
+}
+.player-overlay.is-actionable small {
+  display: block;
+  margin-top: 8px;
+  opacity: 0.85;
+  font-size: 13px;
+}
 .global-sync-row {
   flex: none;
   display: flex;

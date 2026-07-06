@@ -13,7 +13,7 @@ import {
 } from "../constants.js";
 import { isUsingHeadphones } from "../audio-devices.js";
 import { reportWarning } from "../errors.js";
-import { showActionToast } from "../ui.js";
+import { hideTabShareOverlay, showTabShareOverlay, showToast } from "../ui.js";
 import { STATE } from "../youtube.js";
 
 const LOG_PREFIX = "[Jam-in auto-sync]";
@@ -45,6 +45,7 @@ export function createAutoSync({
 }) {
   let worker = null;
   let calibrating = false;
+  let sharePromptPromise = null;
 
   function getWorker() {
     if (!worker) {
@@ -74,24 +75,27 @@ export function createAutoSync({
   }
 
   function requestTabSharePrompt() {
-    return new Promise((resolve) => {
-      showActionToast(
-        elements,
-        "Tap to share this tab's audio (required for auto-sync)",
-        async () => {
-          try {
-            await referenceCapture.ensureShare();
-            console.log(LOG_PREFIX, "tab audio share granted via prompt");
-            resolve(true);
-          } catch (error) {
-            reportWarning(LOG_PREFIX, "share denied via prompt", error);
-            notify(error.message || "Tab audio share was denied.", "error");
-            resolve(false);
-          }
-        },
-        "warn"
-      );
+    if (sharePromptPromise) return sharePromptPromise;
+
+    sharePromptPromise = new Promise((resolve) => {
+      showTabShareOverlay(elements, async () => {
+        try {
+          await referenceCapture.ensureShare();
+          console.log(LOG_PREFIX, "tab audio share granted via player overlay");
+          resolve(true);
+        } catch (error) {
+          reportWarning(LOG_PREFIX, "share denied via player overlay", error);
+          notify(error.message || "Tab audio share was denied.", "error");
+          resolve(false);
+        } finally {
+          hideTabShareOverlay(elements);
+          sharePromptPromise = null;
+        }
+      });
+      showToast(elements, "Tap the video to enable tab audio for auto-sync", "warn");
     });
+
+    return sharePromptPromise;
   }
 
   function canMeasureBleed() {

@@ -1,6 +1,12 @@
 // UI helpers: toast, theme, playerOverlay, formatting.
 
 let toastTimer = null;
+let tabShareOverlayActive = false;
+let tabShareClickHandler = null;
+
+export function isTabShareOverlayActive() {
+  return tabShareOverlayActive;
+}
 
 export function bindElements() {
   return {
@@ -92,12 +98,44 @@ export function getAccentColor() {
 }
 
 export function setPlayerOverlay(elements, message) {
+  if (tabShareOverlayActive) return;
   if (!message) {
     elements.playerOverlay.hidden = true;
     return;
   }
   elements.playerOverlayMsg.textContent = message;
   elements.playerOverlay.hidden = false;
+}
+
+/**
+ * Full-screen overlay on the YouTube player — tap runs onAccept inside a user gesture
+ * (required for getDisplayMedia when play was started from the iframe).
+ */
+export function showTabShareOverlay(elements, onAccept) {
+  hideTabShareOverlay(elements);
+  tabShareOverlayActive = true;
+  elements.playerOverlayMsg.innerHTML =
+    "Tap to share <strong>this tab&rsquo;s audio</strong>"
+    + "<br><small>Required for auto-sync on speakers</small>";
+  elements.playerOverlay.classList.add("is-actionable");
+  elements.playerOverlay.hidden = false;
+
+  tabShareClickHandler = () => {
+    onAccept();
+  };
+  elements.playerOverlay.addEventListener("click", tabShareClickHandler);
+}
+
+export function hideTabShareOverlay(elements) {
+  if (tabShareClickHandler) {
+    elements.playerOverlay.removeEventListener("click", tabShareClickHandler);
+    tabShareClickHandler = null;
+  }
+  if (!tabShareOverlayActive) return;
+  tabShareOverlayActive = false;
+  elements.playerOverlay.classList.remove("is-actionable");
+  elements.playerOverlay.hidden = true;
+  elements.playerOverlayMsg.textContent = "";
 }
 
 // Theme always follows the OS. An inline script in index.html sets the initial

@@ -334,13 +334,20 @@ export function createRecordingSession({
     if (keepTakePending || finalizing) return;
     if (calibrating) return;
 
-    if (autoSync?.needsTabShare() && !sharePromptInFlight) {
+    if (autoSync?.needsTabShare()) {
+      if (sharePromptInFlight) {
+        player.pause();
+        return;
+      }
       sharePromptInFlight = true;
       player.pause();
-      const ok = await autoSync.ensureShareBeforePlay({ fromGesture: false });
-      sharePromptInFlight = false;
-      if (!ok) return;
-      player.play();
+      try {
+        const ok = await autoSync.ensureShareBeforePlay({ fromGesture: false });
+        if (!ok) return;
+        player.play();
+      } finally {
+        sharePromptInFlight = false;
+      }
       return;
     }
 
@@ -352,7 +359,7 @@ export function createRecordingSession({
     if (state === STATE.PLAYING) {
       onPlaying();
     } else if (state === STATE.PAUSED) {
-      if (calibrating) return;
+      if (calibrating || sharePromptInFlight) return;
       engine.stop();
       finalizeTake();
     } else if (state === STATE.ENDED) {
