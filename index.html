@@ -31,8 +31,10 @@
           </button>
 
           <div id="mainMenu" class="app-menu" role="menu" hidden>
+            <button id="aboutBtn" class="menu-item" type="button" role="menuitem">About Jam-in!</button>
+            <div class="menu-divider"></div>
             <label class="menu-item menu-check">
-              <input type="checkbox" id="advNudgeChk" />
+              <input type="checkbox" id="advancedUiChk" />
               <span>Advanced</span>
             </label>
             <div class="menu-advanced">
@@ -59,20 +61,15 @@
                   <button id="headphonesOffsetLater" class="icon-btn" type="button" title="10 ms later">▶</button>
                 </div>
               </div>
+              <div class="menu-item menu-select">
+                <span class="menu-select-label">Bleeding</span>
+                <select id="bleedingMode" aria-label="Bleeding playback mode">
+                  <option value="wet">All Wet</option>
+                  <option value="dry">All Dry</option>
+                  <option value="per-track">Per-track</option>
+                </select>
+              </div>
             </div>
-
-            <div class="menu-item menu-select">
-              <span class="menu-select-label">Bleeding</span>
-              <select id="bleedingMode" aria-label="Bleeding playback mode">
-                <option value="wet">All Wet</option>
-                <option value="dry">All Dry</option>
-                <option value="per-track">Per-track</option>
-              </select>
-            </div>
-
-            <div class="menu-divider"></div>
-
-            <button id="aboutBtn" class="menu-item" type="button" role="menuitem">About Jam-in!</button>
           </div>
         </div>
 

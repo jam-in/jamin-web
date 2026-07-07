@@ -1,7 +1,7 @@
 // App-wide constants and persisted storage keys.
 
 // Offline shell cache — bump when sw.js SHELL list or assets change.
-export const JAMIN_VERSION = "v50";
+export const JAMIN_VERSION = "v51";
 
 export const SEARCH_KEYWORD = "karaoke";
 
@@ -23,7 +23,7 @@ export const STORAGE_KEYS = {
   defaultOffsetSpeakers: "jamin:defaultOffsetSpeakers",
   defaultOffsetHeadphones: "jamin:defaultOffsetHeadphones",
   bleedingMode: "jamin:bleedingMode",
-  nudge: "jamin:nudge",
+  advancedUI: "jamin:advancedUI",
 };
 
 /** Playback bleeding policy (persisted in localStorage). */

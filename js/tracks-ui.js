@@ -5,7 +5,7 @@ import { effectiveStartTime } from "./core/sync-math.js";
 import { BLEEDING_MODE } from "./constants.js";
 import { resolvePlaybackPeaks } from "./core/bleeding.js";
 import { drawTimelineWaveform } from "./waveform.js";
-import { confirmDeleteTake, formatTime, getAccentColor, makeIconButton } from "./ui.js";
+import { confirmDeleteTake, formatTime, getAccentColor, getRecordColor, makeIconButton } from "./ui.js";
 
 const LONG_PRESS_MS = 450;
 const NUDGE_SEC = 0.01;
@@ -123,7 +123,7 @@ export function createTrackListController({ trackStore, settings, videoStore, pl
     drawTimelineWaveform(live.canvas, normalized, {
       segmentLeft,
       segmentWidth,
-      color: getAccentColor(),
+      color: getRecordColor(),
     });
   }
 

@@ -16,7 +16,7 @@ export function bindElements() {
       "searchResults",
       "logoBtn",
       "mainMenu",
-      "advNudgeChk",
+      "advancedUiChk",
       "speakersOffsetEarlier",
       "speakersOffsetReadout",
       "speakersOffsetLater",
@@ -95,6 +95,14 @@ export function getAccentColor() {
   return getComputedStyle(document.documentElement)
     .getPropertyValue("--accent")
     .trim() || "#6c8cff";
+}
+
+// Distinct color for the live (currently-recording) waveform so it stands out
+// from saved takes. Uses the recording red used elsewhere in the UI.
+export function getRecordColor() {
+  return getComputedStyle(document.documentElement)
+    .getPropertyValue("--record")
+    .trim() || "#ff3b46";
 }
 
 export function setPlayerOverlay(elements, message) {

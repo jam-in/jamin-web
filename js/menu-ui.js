@@ -4,8 +4,8 @@ import { JAMIN_VERSION, STORAGE_KEYS } from "./constants.js";
 import { shareDeeplink } from "./deeplink.js";
 
 export function initMenu({ elements, bus, trackList, trackStore, settings, videoStore, notify }) {
-  const savedNudge = localStorage.getItem(STORAGE_KEYS.nudge) === "on";
-  applyNudge(elements, savedNudge);
+  const savedAdvancedUI = localStorage.getItem(STORAGE_KEYS.advancedUI) === "on";
+  applyAdvancedUI(elements, savedAdvancedUI);
 
   if (elements.aboutVersion) {
     elements.aboutVersion.textContent = `Version ` + JAMIN_VERSION;
@@ -26,8 +26,8 @@ export function initMenu({ elements, bus, trackList, trackStore, settings, video
     else closeMenu(elements);
   });
 
-  elements.advNudgeChk?.addEventListener("change", () => {
-    applyNudge(elements, elements.advNudgeChk.checked);
+  elements.advancedUiChk?.addEventListener("change", () => {
+    applyAdvancedUI(elements, elements.advancedUiChk.checked);
     trackList.layoutAllTrackRows();
   });
 
@@ -55,10 +55,10 @@ export function initMenu({ elements, bus, trackList, trackStore, settings, video
   bus.on("timeline:ready", () => trackList.layoutAllTrackRows());
 }
 
-function applyNudge(elements, enabled) {
+function applyAdvancedUI(elements, enabled) {
   document.documentElement.dataset.nudge = enabled ? "on" : "off";
-  localStorage.setItem(STORAGE_KEYS.nudge, enabled ? "on" : "off");
-  if (elements.advNudgeChk) elements.advNudgeChk.checked = enabled;
+  localStorage.setItem(STORAGE_KEYS.advancedUI, enabled ? "on" : "off");
+  if (elements.advancedUiChk) elements.advancedUiChk.checked = enabled;
 }
 
 function openMenu(elements) {

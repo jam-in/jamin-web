@@ -524,7 +524,9 @@ html[data-theme="light"] .rec-indicator { background: rgba(255, 255, 255, 0.85);
 .timeline-controls {
   position: absolute;
   top: 50%;
-  display: flex;
+  /* Per-track buttons are an advanced feature; the default view stays clean.
+     Revealed only under html[data-nudge="on"] (Advanced UI). */
+  display: none;
   align-items: center;
   gap: 4px;
   padding: 4px 6px;
@@ -537,6 +539,9 @@ html[data-theme="light"] .rec-indicator { background: rgba(255, 255, 255, 0.85);
   z-index: 3;
   cursor: default;
   white-space: nowrap;
+}
+html[data-nudge="on"] .timeline-controls {
+  display: flex;
 }
 .timeline-controls.align-right {
   transform: translateY(-50%) translateX(4px);
