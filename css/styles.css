@@ -177,6 +177,15 @@ html[data-nudge="on"] .menu-advanced { display: block; }
   flex: none;
 }
 .menu-advanced .default-auto-btn:hover { background: var(--bg-2); }
+/* Bleeding lives under the Speakers section — it only applies to speaker takes. */
+.menu-advanced .speaker-bleeding {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0;
+}
+.menu-advanced .speaker-bleeding .menu-select-label { font-size: 11px; }
 
 /* ---------- Play-history dropdown (anchored under the search input) ---------- */
 .history-panel {

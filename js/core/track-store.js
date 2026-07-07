@@ -1,7 +1,7 @@
 // Single owner for in-memory tracks + IndexedDB + playback engine consistency.
 
 import * as db from "../db.js";
-import { resolvePlaybackBlob } from "./bleeding.js";
+import { resolvePlaybackBlob, stripBleedData, wasRecordedWithSpeakers } from "./bleeding.js";
 
 export function createTrackStore({ engine, settings, bus }) {
   let tracks = [];
@@ -35,6 +35,11 @@ export function createTrackStore({ engine, settings, bus }) {
       soloTrackId = null;
       tracks = await db.getTracksBySession(videoId, sessionId);
       for (const track of tracks) {
+        // Headphone/legacy takes can't bleed — discard any cached dry/reference
+        // audio so they behave like plain recordings (and lose the Dry toggle).
+        if (!wasRecordedWithSpeakers(track) && stripBleedData(track)) {
+          await db.updateTrack(track);
+        }
         const blob = resolvePlaybackBlob(track, settings.getBleedingMode());
         await engine.addTrack(track, { blob });
       }

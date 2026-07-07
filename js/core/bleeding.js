@@ -17,6 +17,31 @@ function isTrackDry(track) {
   return track.bleeding === false;
 }
 
+/**
+ * Bleed only exists when a take was recorded over speakers. Takes recorded with
+ * headphones — and legacy takes, which predate this flag — never bleed, so the
+ * Dry toggle and any cached dry/reference audio are irrelevant for them.
+ */
+export function wasRecordedWithSpeakers(track) {
+  return track.usedHeadphones === false;
+}
+
+/**
+ * Drop cached bleed-removal artifacts from a track. Used to clean up takes that
+ * cannot bleed (headphone/legacy), so they behave like plain recordings.
+ * @returns {boolean} whether any field was removed.
+ */
+export function stripBleedData(track) {
+  let changed = false;
+  for (const key of ["dry", "dryBlob", "dryPeaks", "refBlob", "refSampleRate", "bleeding"]) {
+    if (track[key] !== undefined) {
+      delete track[key];
+      changed = true;
+    }
+  }
+  return changed;
+}
+
 export function shouldPlayWet(track, mode) {
   switch (mode) {
     case BLEEDING_MODE.WET:
@@ -32,14 +57,14 @@ export function shouldPlayWet(track, mode) {
 }
 
 export function resolvePlaybackBlob(track, mode) {
-  if (shouldPlayWet(track, mode) || !track.dryBlob) {
+  if (!wasRecordedWithSpeakers(track) || shouldPlayWet(track, mode) || !track.dryBlob) {
     return track.blob;
   }
   return track.dryBlob;
 }
 
 export function resolvePlaybackPeaks(track, mode) {
-  if (shouldPlayWet(track, mode) || !track.dryPeaks?.length) {
+  if (!wasRecordedWithSpeakers(track) || shouldPlayWet(track, mode) || !track.dryPeaks?.length) {
     return track.peaks;
   }
   return track.dryPeaks;

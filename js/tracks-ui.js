@@ -3,7 +3,7 @@
 import { reportError } from "./errors.js";
 import { effectiveStartTime } from "./core/sync-math.js";
 import { BLEEDING_MODE } from "./constants.js";
-import { resolvePlaybackPeaks } from "./core/bleeding.js";
+import { resolvePlaybackPeaks, wasRecordedWithSpeakers } from "./core/bleeding.js";
 import { drawTimelineWaveform } from "./waveform.js";
 import { confirmDeleteTake, formatTime, getAccentColor, getRecordColor, makeIconButton } from "./ui.js";
 
@@ -274,29 +274,10 @@ function buildTrackElement({ track, trackStore, settings, getTimelineMetrics, ge
     resetTrackOffset(trackStore, track, renderSyncMs, refreshSegment, notify);
   });
 
-  const dryWrap = document.createElement("label");
-  dryWrap.className = "timeline-bleeding";
-  const dryChk = document.createElement("input");
-  dryChk.type = "checkbox";
-  dryChk.checked = track.dry === true || (track.dry == null && track.bleeding === false);
-  dryChk.title = "Play bleed-removed (dry) version";
-  dryChk.setAttribute("aria-label", "Dry");
-  const syncDryChk = () => {
-    const perTrack = settings.getBleedingMode() === BLEEDING_MODE.PER_TRACK;
-    dryChk.disabled = !perTrack;
-    dryWrap.classList.toggle("is-disabled", !perTrack);
-  };
-  syncDryChk();
-  dryChk.addEventListener("change", () => {
-    trackStore.setTrackDry(track, dryChk.checked).catch((error) => {
-      reportError("setTrackDry", error, null, notify);
-    });
-  });
-
-  const dryText = document.createElement("span");
-  dryText.className = "timeline-bleeding-label";
-  dryText.textContent = "Dry";
-  dryWrap.append(dryChk, dryText);
+  // Bleeding (Dry) control is only meaningful for takes recorded over speakers.
+  const dryWrap = wasRecordedWithSpeakers(track)
+    ? buildDryControl(track, trackStore, settings, notify)
+    : null;
 
   const volWrap = document.createElement("div");
   volWrap.className = "timeline-vol";
@@ -346,7 +327,9 @@ function buildTrackElement({ track, trackStore, settings, getTimelineMetrics, ge
   deleteBtn.classList.add("danger");
   delWrap.append(deleteBtn);
 
-  controls.append(sync, dryWrap, volWrap, soloWrap, delWrap);
+  controls.append(sync);
+  if (dryWrap) controls.append(dryWrap);
+  controls.append(volWrap, soloWrap, delWrap);
   controls.addEventListener("click", (event) => event.stopPropagation());
 
   row._segmentEl = segmentEl;
@@ -359,6 +342,34 @@ function buildTrackElement({ track, trackStore, settings, getTimelineMetrics, ge
   requestAnimationFrame(refreshSegment);
 
   return row;
+}
+
+function buildDryControl(track, trackStore, settings, notify) {
+  const dryWrap = document.createElement("label");
+  dryWrap.className = "timeline-bleeding";
+
+  const dryChk = document.createElement("input");
+  dryChk.type = "checkbox";
+  dryChk.checked = track.dry === true || (track.dry == null && track.bleeding === false);
+  dryChk.title = "Play bleed-removed (dry) version";
+  dryChk.setAttribute("aria-label", "Dry");
+
+  const perTrack = settings.getBleedingMode() === BLEEDING_MODE.PER_TRACK;
+  dryChk.disabled = !perTrack;
+  dryWrap.classList.toggle("is-disabled", !perTrack);
+
+  dryChk.addEventListener("change", () => {
+    trackStore.setTrackDry(track, dryChk.checked).catch((error) => {
+      reportError("setTrackDry", error, null, notify);
+    });
+  });
+
+  const dryText = document.createElement("span");
+  dryText.className = "timeline-bleeding-label";
+  dryText.textContent = "Dry";
+  dryWrap.append(dryChk, dryText);
+
+  return dryWrap;
 }
 
 function wireRowActivation(row, controls, onActivate) {

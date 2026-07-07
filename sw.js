@@ -7,7 +7,7 @@
 // Classic (non-module) service worker: module SW type is not universally
 // supported, so we avoid ES imports here. Keep JAMIN_VERSION in sync with
 // js/constants.js — bump both when the shell or cached assets change.
-const JAMIN_VERSION = "v61";
+const JAMIN_VERSION = "v62";
 
 const CACHE = "jamin-shell-" + JAMIN_VERSION;
 const SHELL = [

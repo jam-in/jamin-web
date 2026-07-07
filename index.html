@@ -49,6 +49,14 @@
                   <button id="speakersOffsetLater" class="icon-btn" type="button" title="10 ms later">▶</button>
                   <button id="speakersAutoBtn" class="default-auto-btn" type="button" title="Measure speaker bleed and set this default">Auto</button>
                 </div>
+                <div class="menu-select speaker-bleeding" title="Bleeding only applies to takes recorded over speakers.">
+                  <span class="menu-select-label">Bleeding</span>
+                  <select id="bleedingMode" aria-label="Bleeding playback mode">
+                    <option value="wet">All Wet</option>
+                    <option value="dry">All Dry</option>
+                    <option value="per-track">Per-track</option>
+                  </select>
+                </div>
               </div>
               <div
                 class="default-sync-row"
@@ -60,14 +68,6 @@
                   <span id="headphonesOffsetReadout" class="track-sync-ms" title="Double-click to reset to 0">+0 ms</span>
                   <button id="headphonesOffsetLater" class="icon-btn" type="button" title="10 ms later">▶</button>
                 </div>
-              </div>
-              <div class="menu-item menu-select">
-                <span class="menu-select-label">Bleeding</span>
-                <select id="bleedingMode" aria-label="Bleeding playback mode">
-                  <option value="wet">All Wet</option>
-                  <option value="dry">All Dry</option>
-                  <option value="per-track">Per-track</option>
-                </select>
               </div>
             </div>
           </div>
