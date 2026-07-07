@@ -10,6 +10,10 @@ class CaptureProcessor extends AudioWorkletProcessor {
 
     this.micBuf = [];
     this.refBuf = [];
+    this.ringMic = new Float32Array(this.maxSamples);
+    this.ringRef = new Float32Array(this.maxSamples);
+    this.ringWrite = 0;
+    this.ringCount = 0;
     this.refEnergySum = 0;
     this.refEnergyCount = 0;
     this.refEnergyRms = 0;
@@ -25,8 +29,34 @@ class CaptureProcessor extends AudioWorkletProcessor {
         });
         this.micBuf = [];
         this.refBuf = [];
+      } else if (event.data?.type === "snapshot") {
+        const len = this.ringCount;
+        const mic = new Float32Array(len);
+        const ref = new Float32Array(len);
+        if (len > 0) {
+          const start = this.ringCount < this.maxSamples
+            ? 0
+            : this.ringWrite;
+          for (let i = 0; i < len; i++) {
+            const idx = (start + i) % this.maxSamples;
+            mic[i] = this.ringMic[idx];
+            ref[i] = this.ringRef[idx];
+          }
+        }
+        this.port.postMessage({
+          type: "snapshot",
+          mic,
+          ref,
+        });
       }
     };
+  }
+
+  pushRing(micSample, refSample) {
+    this.ringMic[this.ringWrite] = micSample;
+    this.ringRef[this.ringWrite] = refSample;
+    this.ringWrite = (this.ringWrite + 1) % this.maxSamples;
+    if (this.ringCount < this.maxSamples) this.ringCount++;
   }
 
   process(inputs) {
@@ -38,13 +68,21 @@ class CaptureProcessor extends AudioWorkletProcessor {
     if (!mic || !ref) return true;
 
     for (let i = 0; i < mic.length; i += this.decimate) {
-      if (this.micBuf.length >= this.maxSamples) break;
-      this.micBuf.push(mic[i]);
-      this.refBuf.push(ref[i]);
+      const micSample = mic[i];
+      const refSample = ref[i];
 
-      const r = ref[i];
-      this.refEnergySum += r * r;
+      // The rolling ring buffer and energy must track the WHOLE capture so
+      // every 12 s window sees fresh, correctly-spaced audio.
+      this.pushRing(micSample, refSample);
+      this.refEnergySum += refSample * refSample;
       this.refEnergyCount++;
+
+      // The linear micBuf/refBuf are capped (used by calibration + bleeding);
+      // stop growing them past maxSamples, but do NOT abort the loop.
+      if (this.micBuf.length < this.maxSamples) {
+        this.micBuf.push(micSample);
+        this.refBuf.push(refSample);
+      }
     }
 
     this.tick += mic.length;

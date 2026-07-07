@@ -168,3 +168,48 @@ export function analyzeSync(mic, ref, sampleRate, options = {}) {
   const corr = crossCorrPhat(mic, ref);
   return pickOffset(corr, sampleRate, options);
 }
+
+/**
+ * Cross-correlation with partial (rho) spectral whitening.
+ * weight = 1 / |X·Y*|^rho :  rho=0 → plain GCC, rho=1 → full GCC-PHAT.
+ * Partial whitening (0<rho<1) balances peak sharpness against noise
+ * amplification, which matters a lot for dense/reverberant speaker bleed.
+ */
+export function crossCorrWeighted(a, b, rho = 1) {
+  const len = Math.max(a.length, b.length);
+  const fftSize = nextPow2(len << 1);
+  const half = fftSize >> 1;
+
+  const fa = realToComplex(padReal(a, fftSize));
+  const fb = realToComplex(padReal(b, fftSize));
+  fft(fa);
+  fft(fb);
+
+  for (let i = 0; i < half; i++) {
+    const ai = i << 1;
+    const ar = fa[ai];
+    const aii = fa[ai + 1];
+    const br = fb[ai];
+    const bi = -fb[ai + 1];
+    const cr = ar * br - aii * bi;
+    const ci = ar * bi + aii * br;
+    let w;
+    if (rho <= 0) {
+      w = 1;
+    } else {
+      const mag = Math.sqrt(cr * cr + ci * ci) || 1e-12;
+      w = rho >= 1 ? 1 / mag : 1 / Math.pow(mag, rho);
+    }
+    fa[ai] = cr * w;
+    fa[ai + 1] = ci * w;
+  }
+
+  fft(fa, true);
+  const corr = new Float32Array(fftSize);
+  for (let i = 0; i < fftSize; i++) corr[i] = fa[i << 1];
+  return corr;
+}
+
+export function analyzeSyncMode(mic, ref, sampleRate, options = {}, rho = 1) {
+  return pickOffset(crossCorrWeighted(mic, ref, rho), sampleRate, options);
+}

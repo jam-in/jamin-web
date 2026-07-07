@@ -1,6 +1,6 @@
 // Tab-audio reference capture via getDisplayMedia, aligned with the mic stream.
 
-import { AUTOSYNC_ANALYSIS_HZ } from "./constants.js";
+import { AUTOSYNC_ANALYSIS_HZ, AUTOSYNC_WINDOW_SEC } from "./constants.js";
 import { reportWarning } from "./errors.js";
 
 const WORKLET_URL = new URL("./worklets/capture-processor.js", import.meta.url);
@@ -95,8 +95,10 @@ export function createReferenceCapture() {
   /**
    * Start aligned mic+ref capture. Returns a stop function.
    * stop() resolves with { mic, ref, sampleRate } Float32Arrays.
+   * `windowSec` sizes the rolling ring buffer (each snapshot returns the
+   * most recent `windowSec` seconds of audio).
    */
-  async function startCapture(micStream) {
+  async function startCapture(micStream, { windowSec = AUTOSYNC_WINDOW_SEC } = {}) {
     if (capturing) await stopCapture();
     if (!hasShare()) {
       throw new Error("Tab audio share is not active.");
@@ -112,7 +114,7 @@ export function createReferenceCapture() {
     micSource.connect(merger, 0, 0);
     refSource.connect(merger, 0, 1);
 
-    const maxSamples = AUTOSYNC_ANALYSIS_HZ * 12;
+    const maxSamples = AUTOSYNC_ANALYSIS_HZ * windowSec;
     workletNode = new AudioWorkletNode(audioCtx, "capture-processor", {
       numberOfInputs: 1,
       numberOfOutputs: 0,
@@ -133,6 +135,42 @@ export function createReferenceCapture() {
     capturing = true;
 
     return stopCapture;
+  }
+
+  function snapshotWindow() {
+    return new Promise((resolve, reject) => {
+      if (!capturing || !workletNode) {
+        resolve(null);
+        return;
+      }
+
+      const node = workletNode;
+      let settled = false;
+      let timeoutId = null;
+      const onMessage = (event) => {
+        if (event.data?.type !== "snapshot") return;
+        if (settled) return;
+        settled = true;
+        if (timeoutId) clearTimeout(timeoutId);
+        node.port.removeEventListener("message", onMessage);
+        resolve({
+          mic: new Float32Array(event.data.mic),
+          ref: new Float32Array(event.data.ref),
+          sampleRate: AUTOSYNC_ANALYSIS_HZ,
+        });
+      };
+
+      node.port.addEventListener("message", onMessage);
+      node.port.postMessage({ type: "snapshot" });
+
+      timeoutId = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        node.port.removeEventListener("message", onMessage);
+        reportWarning("referenceCapture.snapshotTimeout", "Worklet snapshot timed out");
+        reject(new Error("Worklet snapshot timed out"));
+      }, 2000);
+    });
   }
 
   function stopCapture() {
@@ -210,6 +248,7 @@ export function createReferenceCapture() {
     hasShare,
     refEnergy,
     startCapture,
+    snapshotWindow,
     stopCapture,
     releaseShare,
   };

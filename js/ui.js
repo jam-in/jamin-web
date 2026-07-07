@@ -123,8 +123,7 @@ export function showTabShareOverlay(elements, onAccept) {
   hideTabShareOverlay(elements);
   tabShareOverlayActive = true;
   elements.playerOverlayMsg.innerHTML =
-    "Tap to share <strong>this tab&rsquo;s audio</strong>"
-    + "<br><small>Required for auto-sync on speakers</small>";
+    "Tap first to capture <strong>this app&rsquo;s audio</strong> for mic/speaker auto-sync";
   elements.playerOverlay.classList.add("is-actionable");
   elements.playerOverlay.hidden = false;
 

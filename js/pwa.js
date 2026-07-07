@@ -72,7 +72,7 @@ export function initPwa({ elements }) {
 
   window.addEventListener("load", () => {
     navigator.serviceWorker
-      .register("sw.js", { type: "module" })
+      .register("sw.js")
       .then((registration) => {
         registrationRef = registration;
         bindUpdateChecks();

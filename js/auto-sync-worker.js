@@ -1,6 +1,10 @@
 // Module worker: GCC-PHAT offset estimation off the main thread.
 
-import { analyzeSync } from "./core/gcc-phat.js";
+import { analyzeSyncMode } from "./core/gcc-phat.js";
+
+// Partial PHAT whitening. rho=0.3 was the most run-to-run consistent estimator
+// across ground-truth runs; windows are aggregated by median in the orchestrator.
+const PROD_RHO = 0.3;
 
 self.onmessage = (event) => {
   const {
@@ -12,18 +16,17 @@ self.onmessage = (event) => {
     minProminence,
     minPeakMedian,
     role,
+    id,
   } = event.data;
 
   try {
-    const result = analyzeSync(mic, ref, sampleRate, {
-      maxLagSec,
-      mergeSec,
-      minProminence,
-      minPeakMedian,
-    });
+    const opts = { maxLagSec, mergeSec, minProminence, minPeakMedian };
+
+    const result = analyzeSyncMode(mic, ref, sampleRate, opts, PROD_RHO);
 
     self.postMessage({
       ok: true,
+      id,
       role,
       offsetSec: result.offsetSec,
       measuredOffsetSec: result.measuredOffsetSec ?? result.offsetSec,
@@ -39,6 +42,7 @@ self.onmessage = (event) => {
   } catch (error) {
     self.postMessage({
       ok: false,
+      id,
       role,
       error: String(error?.message || error),
     });

@@ -1,7 +1,7 @@
 // App-wide constants and persisted storage keys.
 
 // Offline shell cache — bump when sw.js SHELL list or assets change.
-export const JAMIN_VERSION = "v51";
+export const JAMIN_VERSION = "v61";
 
 export const SEARCH_KEYWORD = "karaoke";
 
@@ -58,6 +58,12 @@ export const SEEK_DETECT_SEC = 0.6;
 // Auto-sync (GCC-PHAT speaker bleed)
 export const AUTOSYNC_MAX_LAG_SEC = 1.0;
 export const AUTOSYNC_MERGE_SEC = 0.04;
+// getDisplayMedia (tab-audio reference) capture latency. The bleed correlation
+// measures mic-vs-reference, but the reference arrives later than the sound
+// leaves the speakers, so the raw measurement systematically undershoots the
+// true take offset by this constant. Calibrated from ground truth: rho=0.3
+// median measured ~215-235 ms ↔ true ~301 ms.
+export const AUTOSYNC_REF_LATENCY_SEC = 0.075;
 export const AUTOSYNC_ANALYSIS_HZ = 16000;
 // Hardened thresholds — low confidence falls back to the default offset.
 // Calibrated from speaker Auto runs: good ~316–317 ms had prominence ≥4.1 and
@@ -68,3 +74,8 @@ export const AUTOSYNC_ENERGY_THRESHOLD = 0.008;
 export const AUTOSYNC_ENERGY_WAIT_MS = 15000;
 export const AUTOSYNC_ENERGY_SUSTAIN_MS = 200;
 export const AUTOSYNC_CALIB_WINDOW_SEC = 7;
+export const AUTOSYNC_WINDOW_SEC = 12;
+// Auto-sync button (menu): shorter rolling windows so results appear sooner.
+export const AUTOSYNC_BUTTON_WINDOW_SEC = 12
+// Safety cap so a forgotten calibration doesn't run forever.
+export const AUTOSYNC_BUTTON_MAX_SEC = 120;
