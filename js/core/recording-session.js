@@ -8,7 +8,7 @@ import { reportError, reportWarning } from "../errors.js";
 import { formatTime } from "../ui.js";
 import { computePeaks, isSilentOrNoise } from "../waveform.js";
 
-import { applyRawMic, isUsingHeadphones, refreshHeadphoneDetection } from "../audio-devices.js";
+import { applyRawMic, refreshHeadphoneDetection } from "../audio-devices.js";
 import { STATE } from "../youtube.js";
 
 export function createRecordingSession({
@@ -19,7 +19,6 @@ export function createRecordingSession({
   videoStore,
   settings,
   autoSync,
-  bleedingProcessor,
   elements,
   bus,
   notify,
@@ -30,7 +29,6 @@ export function createRecordingSession({
   let calibrating = false;
   let recStartVideoTime = 0;
   let recStartedAt = 0;
-  let takeUsedHeadphones = false;
   let lastVideoTime = null;
   let uiTimer = null;
   let stopSyncCapture = null;
@@ -171,10 +169,6 @@ export function createRecordingSession({
 
     if (player.getState() !== STATE.PLAYING) return;
 
-    // Remember the output route for this take: bleeding is only relevant for
-    // takes recorded over speakers.
-    takeUsedHeadphones = isUsingHeadphones();
-
     recStartVideoTime = player.getCurrentTime();
     recStartedAt = Date.now();
     lastVideoTime = recStartVideoTime;
@@ -262,8 +256,6 @@ export function createRecordingSession({
       name: `Take ${trackStore.getTracks().length + 1}`,
       startTime: recStartVideoTime,
       offset: 0,
-      usedHeadphones: takeUsedHeadphones,
-      dry: false,
       duration,
       mimeType,
       volume: 1,
@@ -279,9 +271,6 @@ export function createRecordingSession({
 
       if (autoSync) {
         await autoSync.analyzeTake(track, pcm);
-      }
-      if (bleedingProcessor && !takeUsedHeadphones && pcm?.ref?.length) {
-        await bleedingProcessor.processTrackFromPcm(track, pcm);
       }
     } catch (error) {
       reportError("finalizeTake.save", error, "Could not save this take.", notify);

@@ -11,11 +11,7 @@ import { LEGACY_SESSION_ID, sessionStorageKey } from "./core/session-id.js";
 //     videoId:     string  — YouTube video ID,
 //     sessionId:   string  — jam session ("0" legacy or UUID),
 //     name, startTime, offset, duration, mimeType, volume, muted,
-//     peaks, createdAt, blob,
-//     usedHeadphones (true = recorded via headphones; false = speakers;
-//       absent = legacy take, treated as headphones — no bleed),
-//     dry (per-track: play bleed-removed version when true),
-//     dryBlob, dryPeaks, refBlob, refSampleRate (bleed removal; speaker takes only)
+//     peaks, createdAt, blob
 //   }
 //
 // A "session" record looks like:

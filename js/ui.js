@@ -24,7 +24,6 @@ export function bindElements() {
       "headphonesOffsetEarlier",
       "headphonesOffsetReadout",
       "headphonesOffsetLater",
-      "bleedingMode",
       "aboutBtn",
       "aboutModal",
       "aboutClose",

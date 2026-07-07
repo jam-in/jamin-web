@@ -7,7 +7,7 @@
 // Classic (non-module) service worker: module SW type is not universally
 // supported, so we avoid ES imports here. Keep JAMIN_VERSION in sync with
 // js/constants.js — bump both when the shell or cached assets change.
-const JAMIN_VERSION = "v62";
+const JAMIN_VERSION = "v63";
 
 const CACHE = "jamin-shell-" + JAMIN_VERSION;
 const SHELL = [
@@ -50,9 +50,6 @@ const SHELL = [
   "./js/core/gcc-phat.js",
   "./js/reference-capture.js",
   "./js/auto-sync-worker.js",
-  "./js/core/bleeding.js",
-  "./js/core/bleeding-math.js",
-  "./js/core/bleeding-processor.js",
   "./js/worklets/capture-processor.js",
   "./manifest.webmanifest",
   "./icons/jamin_icon.png",

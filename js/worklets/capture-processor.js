@@ -77,7 +77,7 @@ class CaptureProcessor extends AudioWorkletProcessor {
       this.refEnergySum += refSample * refSample;
       this.refEnergyCount++;
 
-      // The linear micBuf/refBuf are capped (used by calibration + bleeding);
+      // The linear micBuf/refBuf are capped (used by calibration + auto-sync);
       // stop growing them past maxSamples, but do NOT abort the loop.
       if (this.micBuf.length < this.maxSamples) {
         this.micBuf.push(micSample);
