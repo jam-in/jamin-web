@@ -140,10 +140,14 @@ export function createTrackListController({ trackStore, settings, videoStore, pl
 
   function renderTracks() {
     const tracks = trackStore.getTracks();
+    // Preserve any in-progress live recording row across a re-render. A
+    // per-track control mutation (e.g. Dry toggle, bleeding reprocess) emits
+    // tracks:changed while recording; wiping innerHTML detaches the live row
+    // but we keep its reference so it can be re-attached below.
+    const liveRow = live ? live.row : null;
     elements.trackList.innerHTML = "";
-    live = null; // innerHTML reset drops any live row
     const hasTracks = tracks.length > 0;
-    elements.emptyHint.hidden = hasTracks;
+    elements.emptyHint.hidden = hasTracks || !!liveRow;
 
     updateRuler();
 
@@ -163,8 +167,11 @@ export function createTrackListController({ trackStore, settings, videoStore, pl
       );
     }
 
+    if (liveRow) elements.trackList.prepend(liveRow);
+
     requestAnimationFrame(() => {
       layoutAllTrackRows();
+      if (live) drawLive();
       bus.emit("playhead:refresh");
     });
   }
