@@ -49,7 +49,14 @@ export function initMenu({ elements, bus, trackList, trackStore, settings, video
     }
   });
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") closeMenu(elements);
+    if (event.key === "Escape") {
+      closeMenu(elements);
+      return;
+    }
+    if (shouldToggleAdvancedUI(event)) {
+      event.preventDefault();
+      toggleAdvancedUI(elements, trackList);
+    }
   });
 
   bus.on("timeline:ready", () => trackList.layoutAllTrackRows());
@@ -59,6 +66,27 @@ function applyAdvancedUI(elements, enabled) {
   document.documentElement.dataset.nudge = enabled ? "on" : "off";
   localStorage.setItem(STORAGE_KEYS.advancedUI, enabled ? "on" : "off");
   if (elements.advancedUiChk) elements.advancedUiChk.checked = enabled;
+}
+
+function toggleAdvancedUI(elements, trackList) {
+  const enabled = document.documentElement.dataset.nudge !== "on";
+  applyAdvancedUI(elements, enabled);
+  trackList.layoutAllTrackRows();
+}
+
+function shouldToggleAdvancedUI(event) {
+  if (event.key.toLowerCase() !== "a") return false;
+  if (event.ctrlKey || event.metaKey || event.altKey) return false;
+  if (!isDesktopKeyboard()) return false;
+  const target = event.target;
+  if (!(target instanceof Element)) return false;
+  if (target.isContentEditable) return false;
+  const tag = target.tagName;
+  return tag !== "INPUT" && tag !== "TEXTAREA" && tag !== "SELECT";
+}
+
+function isDesktopKeyboard() {
+  return !window.matchMedia || window.matchMedia("(pointer: fine)").matches;
 }
 
 function openMenu(elements) {
